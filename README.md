@@ -10,6 +10,7 @@
 <p align="center">
   <a href="https://discord.gg/3PMwdtcM87"><b>Discord</b></a> ·
   <a href="https://github.com/w0px/autocrystal-Shiny-Hunting-Toolkit"><b>autocrystal user bot</b></a> ·
+  <a href="HOW-IT-WORKS.md"><b>How it works, in detail</b></a> ·
   <a href="FAQ.md"><b>FAQ</b></a>
 </p>
 
@@ -105,6 +106,8 @@ Plus 10% for everything that isn't hunting (Joey, Pokémon Centers, catches), me
 
 ## Picking Targets: Where and When to Hunt
 
+*The maths and an example: [the planner](HOW-IT-WORKS.md#1-where-to-hunt-the-planner) and [the roll](HOW-IT-WORKS.md#2-the-roll-picking-a-spot).*
+
 Every Pokémon has its own places and times: Gastly only at night, Teddiursa only in the morning, Dunsparce at 1% in Dark Cave. The bot knows every encounter table of the game, by map and time of day.
 
 - **A plan for the whole section.** The bot works out how many hours of each morning, day and night to spend where, so the section is finished as soon as possible. Every encounter counts, however rare the Pokémon it's still waiting for.
@@ -114,6 +117,8 @@ Every Pokémon has its own places and times: Gastly only at night, Teddiursa onl
 - **Its targets on screen.** The overlay shows the current targets, rarest and map-exclusive ones first, and the next rotation ("at 6 PM: Route 31").
 
 ## The Team
+
+*Why Butterfree and Zubat, and why Zubat stops at Lv 8-10: [the catching crew](HOW-IT-WORKS.md#3-the-catching-crew-why-butterfree-and-zubat); how the team is scored: [picking the team](HOW-IT-WORKS.md#8-picking-the-team).*
 
 <p align="center">
   <img src="images/team.png" alt="The team: starter, catcher, weakener, specialist, HM slave" width="640">
@@ -133,6 +138,8 @@ The catcher and the weakener are the only jobs a regular Pokémon may do. Everyt
 
 ## Catching a Shiny
 
+*Turn by turn, with every limit: [catching a shiny](HOW-IT-WORKS.md#4-catching-a-shiny-turn-by-turn).*
+
 When a shiny appears:
 
 1. **Sleep.** The catcher uses its sleep move until the shiny is asleep, as often as it takes.
@@ -142,6 +149,8 @@ When a shiny appears:
 If the shiny wakes up, it's put back to sleep. If the weakener falls asleep, the bot waits it out or brings in another one. While the shiny can be put to sleep, a critical hit is never risked: no safe hit left means throwing balls.
 
 ## Battles
+
+*Move choice, switching, running and training in detail: [battles](HOW-IT-WORKS.md#5-battles).*
 
 Every battle uses the real numbers from the game: types, stats, stat changes, moves and damage rolls.
 

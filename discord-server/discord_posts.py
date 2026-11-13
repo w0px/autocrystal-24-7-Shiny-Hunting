@@ -60,31 +60,40 @@ def release(tag, ping):
     # 520 px, a message takes the chat's whole width (the user, 2026-11-13: the
     # card was narrow and got really long). Headings, bold and bullets render
     # the same. Each message up to 2,000 letters (readme_to_discord splits them).
-    msgs = [m["content"] for m in R2D.convert(r["body"], 0) if m["content"].strip()]
+    # The zip's SHA-256 line goes up into the title card, with the Download /
+    # Release page buttons under it (the user, 2026-11-13: the long line
+    # stretches the card to Discord's full card width); the notes go without it.
+    notes, sha = r["body"], None
+    m = re.search(r"^[^\n]*SHA-256[^\n]*`[0-9a-fA-F]{64}`[^\n]*$", notes, re.M)
+    if m:
+        sha = m.group(0).strip()
+        notes = (notes[:m.start()] + notes[m.end():]).strip()
+    msgs = [m["content"] for m in R2D.convert(notes, 0) if m["content"].strip()]
     GREEN = 0x8BC34A
     head = {"content": "<@&%s>" % role,
             "embeds": [{"color": GREEN, "title": "autocrystal %s" % tag, "url": r["url"], "image": {"url": "attachment://release_teddy.gif"},
                         "footer": {"text": "autocrystal · Windows · Gold, Silver & Crystal"}}]}
+    if sha: head["embeds"][0]["description"] = sha
     if r.get("publishedAt"): head["embeds"][0]["timestamp"] = r["publishedAt"]
     if ping: head["allowed_mentions"] = {"roles": [role]}
-    post("releases", head, [("release_teddy.gif", open(os.path.join(HERE, "art", "release_teddy_400.gif"), "rb").read())])
     buttons = [{"type": 1, "components": [
         {"type": 2, "style": 5, "label": "Download " + tag, "url": zipurl},
         {"type": 2, "style": 5, "label": "Release page", "url": r["url"]}]}]
+    teddy = [("release_teddy.gif", open(os.path.join(HERE, "art", "release_teddy_400.gif"), "rb").read())]
+    try:
+        post("releases", dict(head, components=buttons), teddy, components=True)
+    except Fail as e:
+        say(" (buttons refused: %s - the links go in the card)" % str(e)[:120])
+        head["embeds"][0]["description"] = ((sha + "\n\n") if sha else "") + "**[Download %s](<%s>) · [Release page](<%s>)**" % (tag, zipurl, r["url"])
+        post("releases", head, teddy)
+    # A big heading over the notes (the user, 2026-11-13), in the first
+    # message if it still fits Discord's 2,000 letters, else on its own.
+    heading = "# Patch notes %s" % tag
+    if msgs and len(heading) + 1 + len(msgs[0]) <= 2000: msgs[0] = heading + "\n" + msgs[0]
+    else: msgs.insert(0, heading)
     SUPPRESS_EMBEDS = 4      # (no link previews under the notes)
-    for i, text in enumerate(msgs):
-        body = {"content": text, "flags": SUPPRESS_EMBEDS}
-        if i < len(msgs) - 1:
-            post("releases", body); continue
-        try:
-            post("releases", dict(body, components=buttons), components=True)
-        except Fail as e:
-            say(" (buttons refused: %s - the links go in the text)" % str(e)[:120])
-            body["content"] += "\n\n**[Download %s](<%s>) · [Release page](<%s>)**" % (tag, zipurl, r["url"])
-            if len(body["content"]) > 2000:
-                post("releases", {"content": text, "flags": SUPPRESS_EMBEDS})
-                body = {"content": "**[Download %s](<%s>) · [Release page](<%s>)**" % (tag, zipurl, r["url"]), "flags": SUPPRESS_EMBEDS}
-            post("releases", body)
+    for text in msgs:
+        post("releases", {"content": text, "flags": SUPPRESS_EMBEDS})
 
 
 def daily_test(icon="teddy"):
