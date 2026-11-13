@@ -51,8 +51,14 @@ M.MIN_SHARE = 0.01      -- a spot under this share of its time of day: none (the
 -- the catches just come sooner.
 M.OWN_FIRST = true
 
+-- Measured per map where the formula is off (the dev logs, 2026-11-10/12:
+-- Sprout Tower 85 encounters a game hour, not the formula's 106 - the
+-- tower's loops are short and turn a lot; grass 145-160 and Dark Cave 128
+-- match it).
+M.MEASURED = {SPROUT_TOWER_2F = 42, SPROUT_TOWER_3F = 42}
+
 -- Seconds of game time per encounter on a map with this encounter rate (% of steps).
-function M.secs(rate) return M.BATTLE_SECS + M.WALK_SECS / (rate or 10) end
+function M.secs(rate, map) return (map and M.MEASURED[map]) or (M.BATTLE_SECS + M.WALK_SECS / (rate or 10)) end
 
 -- spots(section, need, spotsBySpecies) -> {{map, time, rate, secs, pct =
 -- {[species] = %}, needed = {species...}}, ...}: every (map, time of day)
@@ -66,7 +72,7 @@ function M.spots(need, spotsBySpecies)
                 local k = s.map .. "|" .. t
                 local e = byKey[k]
                 if not e then
-                    e = {map = s.map, time = t, rate = s.rate or 10, secs = M.secs(s.rate), pct = {}, needed = {}}
+                    e = {map = s.map, time = t, rate = s.rate or 10, secs = M.secs(s.rate, s.map), pct = {}, needed = {}}
                     byKey[k] = e
                 end
                 e.pct[sp] = (e.pct[sp] or 0) + s.pct

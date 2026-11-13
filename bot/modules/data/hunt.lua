@@ -118,7 +118,7 @@ function M.role_spot(section, time, species, scored)
     for _, sp in ipairs(species) do
         for _, s in ipairs(all[sp] or {}) do
             if s.time == time or s.time == "any" then
-                local ps = s.pct / Planner.secs(s.rate)
+                local ps = s.pct / Planner.secs(s.rate, s.map)
                 if not bestPs or ps > bestPs then best, bestPs = s, ps end
             end
         end

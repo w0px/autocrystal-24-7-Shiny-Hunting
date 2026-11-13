@@ -45,7 +45,9 @@ It's a *living* dex: one shiny for every form. Three shiny Zubat means one stays
 
 - **Normal speed.** The game runs at 1x, like on a Game Boy. No fast-forward.
 - **Vanilla.** An unmodified English Pokémon Crystal ROM. The bot only presses buttons and reads the game's memory, like a player looking at the screen.
-- **No resets.** A shiny that faints or runs away is gone. No retries, no rollbacks, no save scumming.
+- **No resets for wild Pokémon.** A shiny that faints or runs away is gone. No retries, no rollbacks, no save scumming.
+- **Soft resets only for one-time Pokémon.** Sudowoodo, the legendaries, gifts and the like appear once per game, so the bot resets for them like players reset for a shiny starter. See the [FAQ](FAQ.md#what-about-pokémon-you-only-meet-once).
+- **No breeding.** Every shiny is a wild one (or a one-time Pokémon). Breeding would make eggs shiny 1 in 64; see the [FAQ](FAQ.md#why-no-breeding) for what that leaves out of reach.
 - **Savestates only for crashes.** If the PC or emulator crashes, the stream carries on from the last automatic save. Never to undo something that happened in the game.
 - **Real time.** The game clock follows the real clock, so morning, day and night on stream are morning, day and night where the bot runs.
 
@@ -64,25 +66,42 @@ The first section is everything before Falkner's gym: Routes 29 to 31, Route 36 
 
 ## The Sections and How Long They Take
 
-Each section only needs what the ones before it didn't give: a Pidgey line finished before Falkner isn't hunted again.
+Each section only needs what the ones before it didn't give: a Pidgey line finished before Falkner isn't hunted again. Every way the game offers to meet a wild Pokémon counts, from the section that unlocks it: the **Old Rod** after Falkner, **Headbutt** in Ilex Forest, **Rock Smash** after Sudowoodo, **Surf** and the **Good Rod** after Morty, and the swarm callers once their numbers are in the phone. A new method also opens up the places from earlier sections.
 
-| # | Section | New places to hunt | Shinies to catch | Rarest ones still needed | Typical time | 1 in 10 runs |
+| # | Section | New places and methods | Shinies to catch | Rarest ones still needed | Typical time | 1 in 10 runs |
 |---|---|---|---|---|---|---|
-| 1 | Before Falkner | Routes 29-31, Route 36, south of Route 46, Sprout Tower, Dark Cave's first room, Ruins of Alph's inner chamber | 42 | Dunsparce 1%, Teddiursa 5% (morning), Hoppip 5%, Weedle 5% | **2.3 years** | under 1.5 / over 3.5 years |
-| 2 | Before Bugsy | Route 32, Ruins of Alph, Union Cave, Route 33, Slowpoke Well | 12 | Onix 10%, Smeargle 10%, Slowpoke 15% | **4 months** | under 3 / over 7 months |
-| 3 | Before Whitney | Ilex Forest, Routes 34-35, National Park | 22 | Yanma 1%, Ditto 5%, Jigglypuff 5%, Paras 5% | **10 months** | under 6 / over 21 months |
-| 4 | Before Morty | Route 37, Burned Tower | 3 | Stantler 40%, Koffing 59% (two: one becomes the Weezing) | **12 days** | under 4 days / over 1 month |
-| 5 | Before Chuck | Routes 38-39 | 6 | Miltank 5%, Tauros 5% | **3.5 months** | under 1 / over 8 months |
-| 6 | Before Jasmine | Whirl Islands | 4 | Seel 25%, Krabby 60% | **1 month** | under 2 / over 7 weeks |
-| 7 | Before Pryce | Route 42, Mt. Mortar, Route 43 | 5 | Machop 20%, Farfetch'd 20%, Marill 20% | **2 months** | under 5 weeks / over 4 months |
-| 8 | Before Clair | Route 44, Ice Path | 7 | Sneasel 10%, Jynx 10% | **3 months** | under 6 weeks / over 7 months |
-| | **All of Johto** | | **101** | | **about 4.7 years** | under 3.7 / over 6 years |
+| 1 | Before Falkner | Routes 29-31, Route 36, south of Route 46, Sprout Tower, Dark Cave's first room, Ruins of Alph's inner chamber | 42 | Dunsparce 1%, Teddiursa 5% (morning), Phanpy 5% (morning), Hoppip 5%, Weedle 5% | **2.4 years** | under 1.6 / over 3.8 years |
+| 2 | Before Bugsy | Routes 32-33, Ruins of Alph, Union Cave, Slowpoke Well; **Old Rod**; Ralph's Qwilfish swarm | 21 | Onix 10%, Smeargle 10%, Qwilfish 15% (swarm), Krabby, Goldeen, Tentacool 15% (Old Rod) | **10 months** | under 7 / over 13 months |
+| 3 | Before Whitney | Ilex Forest, Routes 34-35, National Park; **Headbutt**; Arnie's Yanma swarm; the **Bug-Catching Contest** | 27 + Scyther and Pinsir | Ditto 5%, Jigglypuff 5%, Paras 5%, Aipom and Exeggcute 20% (rare trees); Scyther and Pinsir 5% (Contest only) | **9 months**, plus the Contest | under 6 / over 14 months |
+| 4 | Before Morty | Route 37, Burned Tower; **Rock Smash** | 4 | Shuckle 10% (rocks), Stantler 40%, two Koffing (one becomes the Weezing) | **2 months** | under 3 weeks / over 4 months |
+| 5 | Before Chuck | Routes 38-41, Olivine, Cianwood; **Surf** and the **Good Rod** | 12 | Tauros 5%, Miltank 5%, Mantine 10% (surfing), Staryu, Corsola, Shellder 10% (Good Rod) | **7 months** | under 4.5 / over 12 months |
+| 6 | Before Jasmine | Whirl Islands | 4 | Seel 25%, Horsea 30% (surfing) | **5 weeks** | under 3 weeks / over 2 months |
+| 7 | Before Pryce | Route 42, Mt. Mortar, Route 43, Lake of Rage | 5 | Farfetch'd 20%, Machop 20%, Marill 30% (surfing) | **2 months** | under 4 weeks / over 4 months |
+| 8 | Before Clair | Route 44, Ice Path, Route 45, Dark Cave's Blackthorn side | 13 | Skarmory 5%, Jynx 10%, Sneasel 10%, Dratini 10% (Good Rod) | **8 months** | under 5 / over 13 months |
+| | **All wild Pokémon of Johto** | | **128** | | **about 6 years** | under 4.6 / over 7.6 years |
 
 *Typical time* is the median: half the runs are faster, half slower. *1 in 10 runs* is how fast the luckiest tenth and how slow the unluckiest tenth are. A percentage is the best chance to meet that Pokémon in one encounter anywhere in the section.
 
-**Where the numbers come from:** the bot's own planner, run 100 times through all eight sections with the game's real encounter tables, 1 in 8,192 shinies and 1x speed (one encounter every 23 to 34 seconds, measured on the bot). Every shiny is caught, and each section's evolutions are done before its gym, so a Pidgeotto evolved before Falkner isn't hunted again later. It counts the hunt only: the story, training and evolving add days, not months.
+**On top of that:**
 
-**What can change them:** for now the bot hunts by walking, in grass and caves. Surfing, fishing and Headbutt add more Pokémon to each section once the bot can do them, so the real sections will be longer. The sections after Falkner are the plan and may still move around. Kanto and the Elite Four come after Clair.
+- **The Bug-Catching Contest: Scyther and Pinsir, about 26 years** (31 on average; 8 years for the luckiest tenth, 62 for the unluckiest). They live only in the contest, at 5% each, and the contest is 20 minutes on Tuesdays, Thursdays and Saturdays: about 7,800 encounters a year. Without breeding there's no faster way, and as the rules stand the Whitney section waits for them. The [FAQ](FAQ.md#why-does-the-bug-catching-contest-take-decades) has the maths.
+- **One-time Pokémon**, about a dozen in Johto (Togepi, Spearow, Eevee, Sudowoodo, Raikou, Entei, Shuckle, Lapras, the Electrodes, Tyrogue, Suicune): soft resets, about 5 days each at normal speed. The red Gyarados is always shiny.
+
+**Where the numbers come from:** the bot's own planner, run 100 times through all eight sections with every wild table of the game (grass, caves, water, both rods, headbutt trees, rocks, swarms), 1 in 8,192 shinies and normal speed. Every shiny is caught, and each section's level evolutions are done before its gym. The speeds:
+
+| | Seconds per encounter | Source |
+|---|---|---|
+| Grass | ~23 | measured on the bot: 145-160 an hour |
+| Dark Cave | ~27 | measured: 128 an hour |
+| Sprout Tower | ~42 | measured: 85 an hour |
+| Surfing | 25-34 | the water's encounter rate, like grass |
+| Fishing | ~31 | estimate: two casts per bite, then the battle |
+| Headbutt | 28-33 | estimate: rare trees 80%, good trees 50% |
+| Rock Smash | ~50 | estimate: 40% per rock, rocks come back on a map change |
+
+Plus 10% for everything that isn't hunting (Joey, Pokémon Centers, catches), measured on whole game days. A swarm is counted as running 60% of the time once its caller's number is in the phone, and every tree map is assumed to have a rare tree for the bot's Trainer ID. It counts the hunt only: the story and training add days, not months.
+
+**What can still change them:** the sections after Falkner are the plan and may still move around, and the fishing, Headbutt and Rock Smash speeds are estimates until the bot does them. The Super Rod, Kanto and the Elite Four come after Clair.
 
 ## Picking Targets: Where and When to Hunt
 
@@ -142,7 +161,9 @@ Every battle uses the real numbers from the game: types, stats, stat changes, mo
 
 ## Money and Shopping
 
-Money comes from **Youngster Joey**. The bot takes his phone number (and nobody else's), and every time he calls for a rematch it goes to fight his Rattata: **$64** a win. Cave maps have no phone signal, so the bot weighs that in when it's waiting for his call.
+Money comes from **Youngster Joey**. The bot takes his phone number, and every time he calls for a rematch it goes to fight his Rattata: **$64** a win. Cave maps have no phone signal, so the bot weighs that in when it's waiting for his call.
+
+The only other numbers it takes are the **swarm callers'**: Hiker Anthony (Dunsparce), Bug Catcher Arnie (Yanma) and Fisher Ralph (Qwilfish). Their swarms turn a 1% Pokémon into a 30-40% one until midnight; the [FAQ](FAQ.md#what-are-swarms-and-why-does-the-bot-answer-the-phone) has the maths. (Planned: the bot doesn't take these numbers yet.)
 
 - **Poké Balls first.** Once there are fewer than 90 balls and enough money, the bot buys a stack at the nearest Poké Mart, up to 99.
 - **Then savings.** With a full bag, Joey's rematches carry on until there's a $100,000 cushion.
@@ -204,3 +225,5 @@ The stream bot is open source, and it's all in this repository:
 ## Status
 
 The bot is in testing: the story up to Sprout Tower, the first section's hunt, the team, catching, the PC, money and evolutions are built. The gym and the sections after Falkner come next, so expect the code to change a lot.
+
+Not built yet for the stream bot: fishing, surfing, Headbutt and Rock Smash hunts (the user bot has its own versions), the swarm callers, the Bug-Catching Contest and soft resets for one-time Pokémon.
