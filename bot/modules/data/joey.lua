@@ -43,7 +43,7 @@ local REMATCH = 0xDC4C            -- wDailyRematchFlags (wdc41 + 11)
 local JOEY_BIT = 0x40             -- ENGINE_JOEY_READY_FOR_REMATCH: bit 6
 M.talking = false                 -- story.lua's "number" answer: YES only while true
 M.wins, M.earned = 0, 0           -- this session
-M.on_win = nil                    -- (gained): told after each rematch's prize (the launcher keeps the total)
+M.on_win = nil                    -- (gained, exp): told after each rematch's prize and the party's EXP from it (the launcher keeps the totals)
 
 function M.setup(state, world, walker, story, mart, logger)
     State, World, Walker, Story, Mart = state, world, walker, story, mart
@@ -189,6 +189,7 @@ function M.look_after(opts)
     -- 3. Joey's rematch: building the money pile, or short of the balls
     if M.registered() and M.ready() and (M.state.farming or (room >= minB and not enough)) then
         local before = State.money()
+        local partyBefore = State.party and State.party() or nil
         -- (said a few different ways - the user, 2026-11-09)
         local lines = {"Walking to rebattle Joey on Route 30.", "Joey wants a rematch - off to Route 30.",
             "Joey called - heading back to Route 30 for another battle.", "Time for a rematch with Joey on Route 30."}
@@ -197,8 +198,10 @@ function M.look_after(opts)
         if not ok and SERIOUS[why] then return why end
         local gained = State.money() - before
         if gained > 0 then
+            -- (the party's EXP from the battle too - the user, 2026-11-13: for the daily log)
+            local exp = (partyBefore and State.exp_gained) and State.exp_gained(partyBefore, State.party()) or 0
             M.wins, M.earned = M.wins + 1, M.earned + gained
-            if M.on_win then pcall(M.on_win, gained) end
+            if M.on_win then pcall(M.on_win, gained, exp) end
             say(string.format("Beat Joey again: +$%d ($%d now; %d rematch%s, $%d this session).", gained, State.money(),
                 M.wins, M.wins == 1 and "" or "es", M.earned))
         elseif M.ready() then

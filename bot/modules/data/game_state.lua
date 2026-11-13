@@ -109,7 +109,8 @@ function M.money()
     return r(A.money) * 65536 + r(A.money + 1) * 256 + r(A.money + 2)
 end
 
--- The party: {species, level, hp, maxHp} each.
+-- The party: {species, level, hp, maxHp, exp} each (exp: the party
+-- struct's 3 bytes at +8, highest first).
 function M.party()
     local out = {}
     local n = r(A.partyCount)
@@ -117,9 +118,21 @@ function M.party()
     for i = 0, n - 1 do
         local base = A.partyMon1 + i * A.partyMonLength
         out[#out + 1] = {species = r(base), level = r(base + 0x1F),
-            hp = r16(base + 0x22), maxHp = r16(base + 0x24)}
+            hp = r16(base + 0x22), maxHp = r16(base + 0x24),
+            exp = r(base + 8) * 65536 + r(base + 9) * 256 + r(base + 10)}
     end
     return out
+end
+
+-- EXP the party gained between two M.party() reads: each slot's rise
+-- (an evolution keeps its EXP; a slot that went down - a swap - counts 0).
+function M.exp_gained(before, after)
+    local sum = 0
+    for i, a in ipairs(after or {}) do
+        local b = before and before[i]
+        if b and a.exp and b.exp and a.exp > b.exp then sum = sum + (a.exp - b.exp) end
+    end
+    return sum
 end
 
 -- Fraction of the party's total HP left, 0 - 1 (nil with no party).

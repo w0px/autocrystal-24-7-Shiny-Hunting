@@ -4,7 +4,7 @@
 
 # How the Bot Works, in Detail
 
-The [README](README.md) gives the overview, the [FAQ](FAQ.md) the odds. This page goes through every decision the bot makes, with the numbers behind it. The numbers come from the bot's code (file names in brackets), the game's code (the [pokecrystal disassembly](https://github.com/pret/pokecrystal)), and the bot's logs at normal speed.
+The [README](README.md) gives the overview, the [FAQ](FAQ.md) the odds. This page goes through every decision the bot makes, with the numbers behind it. They're all the bot's own: during the run nobody picks a route, a team member, a move or a ball for it. What people wrote beforehand are the rules it decides by. The numbers come from the bot's code (file names in brackets), the game's code (the [pokecrystal disassembly](https://github.com/pret/pokecrystal)), and the bot's logs at normal speed.
 
 - [1. Where to Hunt: the Planner](#1-where-to-hunt-the-planner)
 - [2. The Roll: Picking a Spot](#2-the-roll-picking-a-spot)

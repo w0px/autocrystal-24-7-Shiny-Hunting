@@ -8,6 +8,7 @@ Every number here comes from the game's own code (the [pokecrystal disassembly](
 
 **The basics**
 - [Is the stream really live?](#is-the-stream-really-live)
+- [Is anyone controlling the bot?](#is-anyone-controlling-the-bot)
 - [Is the game modified?](#is-the-game-modified)
 - [Is the bot cheating?](#is-the-bot-cheating)
 - [What happens if a shiny runs away or faints?](#what-happens-if-a-shiny-runs-away-or-faints)
@@ -47,6 +48,16 @@ Every number here comes from the game's own code (the [pokecrystal disassembly](
 ### Is the stream really live?
 
 Yes. What you see is the game running right now, at normal speed. Nothing is recorded, sped up or cut. The in-game clock follows the real one, so it's night in the game when it's night where the bot runs.
+
+### Is anyone controlling the bot?
+
+No. Once it's started, the bot makes every decision on its own:
+- it plays the story;
+- it picks where and when to hunt;
+- it builds its team, and replaces members when a better shiny comes along;
+- it trains, evolves, farms its own money, shops, heals and runs the PC.
+
+Nobody picks a route, a team member or a move during the run. What people decide are the rules it follows, written into its code beforehand, like "no breeding" or "the catcher is always the Butterfree line". The [README](README.md#nobodys-playing-the-bot-decides) lists every decision, and [How it works](HOW-IT-WORKS.md) explains how each one is made.
 
 ### Is the game modified?
 

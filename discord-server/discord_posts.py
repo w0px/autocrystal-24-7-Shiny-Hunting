@@ -104,7 +104,8 @@ def daily_test(icon="teddy"):
            lr("NEAR MISSES", "2", "cyan"), lr("PERFECT / 0-0-0-0 DVS", "0"),
            lr("FOUR OF A KIND", "1"), lr("LONGEST STREAK", "9 PIDGEY"),
            lr("BEST DVS", "56/60 HOOTHOOT"), lr("WORST DVS", "3/60 ZUBAT"),
-           lr("MONEY FROM JOEY", "+¥3,240", "green"), lr("HOURS HUNTED", "24.0")]
+           lr("MONEY FROM JOEY", "+¥3,200", "green"), lr("EXP FROM JOEY", "+2,400", "green"),
+           lr("HOURS HUNTED", "24.0")]
     rare = [c("cyan", "ALMOST SHINY") + "  SENTRET 3/10/10/10",
             c("cyan", "ALMOST SHINY") + "  RATTATA 12/10/10/10",
             c("yellow", "FOUR OF A KIND") + "  GEODUDE 7/7/7/7",

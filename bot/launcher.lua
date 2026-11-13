@@ -331,7 +331,7 @@ local function commas(n) local s = tostring(n); while true do local t, k = s:gsu
 local function ordinal(n) local m = n % 100; local e = (m >= 11 and m <= 13) and "th" or ({"st", "nd", "rd"})[n % 10] or "th"; return commas(n) .. e end
 -- Joey's rematches over every session (on_joey keeps them, in
 -- play_joey_money.txt): the money, the wins, each win of the last 24 hours.
-local joey = {money = 0, wins = nil, recent = {}}
+local joey = {money = 0, wins = nil, recent = {}, exp = 0}
 local function joey_since(seconds)
     local sum, now = 0, os.time()
     for _, r in ipairs(joey.recent) do if now - r[1] < seconds then sum = sum + r[2] end end
@@ -636,7 +636,7 @@ end
 -- records file, so a restart in the day doesn't lose it.
 local function day_start()
     rec.day, rec.dayTotal, rec.dayShinies = os.date("%Y-%m-%d"), Stats.totalEncounters or 0, Stats.totalShinies or 0
-    rec.dayJoey, rec.dayNames = joey.money, ""
+    rec.dayJoey, rec.dayNames, rec.dayJoeyExp = joey.money, "", joey.exp
     rec.dayStreak, rec.dayStreakName, rec.dayStreakOdds = 0, "", ""
     save_records()
 end
@@ -646,6 +646,8 @@ local function day_check()
     local enc = (Stats.totalEncounters or 0) - (tonumber(rec.dayTotal) or 0)
     local sh = (Stats.totalShinies or 0) - (tonumber(rec.dayShinies) or 0)
     local money = joey.money - (tonumber(rec.dayJoey) or 0)
+    -- (the party's EXP from Joey's battles that day - the user, 2026-11-13)
+    local exp = joey.exp - (tonumber(rec.dayJoeyExp) or joey.exp)
     local y, m, d = rec.day:match("^(%d+)-(%d+)-(%d+)$")
     local yesterday = os.date("%Y-%m-%d", os.time() - 86400) == rec.day
     local when = yesterday and "Yesterday" or (y and os.date("%A %B %d", os.time({year = tonumber(y), month = tonumber(m), day = tonumber(d), hour = 12})) or rec.day)
@@ -658,8 +660,8 @@ local function day_check()
             (rec.dayStreakOdds or "") ~= "" and (" (1 in " .. rec.dayStreakOdds .. ")") or "")
     end
     if enc > 0 then
-        on_say(string.format("%s%s: %s encounters, %s, $%s from Joey%s.", when, yesterday and "'s recap" or " recap", commas(enc), shinyText,
-            commas(math.max(0, money)), streakText))
+        on_say(string.format("%s%s: %s encounters, %s, $%s from Joey%s%s.", when, yesterday and "'s recap" or " recap", commas(enc), shinyText,
+            commas(math.max(0, money)), exp > 0 and string.format(" (%s EXP for the party)", commas(exp)) or "", streakText))
     end
     day_start()
 end
@@ -892,8 +894,9 @@ local function update_runtime()
 end
 -- MONEY FROM JOEY on the overlay: what his rematches paid, over every
 -- session, kept in modules/data/play_joey_money.txt: the money, then the
--- wins, then each win of the last 24 hours ("time amount"). Delete that
--- file to start it from 0 again.
+-- wins, then each win of the last 24 hours ("time amount"), then the
+-- party's EXP from his battles ("exp N" - the user, 2026-11-13: for the
+-- daily log). Delete that file to start it from 0 again.
 local JOEY_FILE = LAUNCHER_JOEY_FILE or (script_dir .. "modules/data/play_joey_money.txt")
 do
     local f = io.open(JOEY_FILE, "r")
@@ -903,13 +906,16 @@ do
         for line in f:lines() do
             local t, a = line:match("^(%d+) (%d+)$")
             if t then joey.recent[#joey.recent + 1] = {tonumber(t), tonumber(a)} end
+            local e = line:match("^exp (%d+)$")
+            if e then joey.exp = tonumber(e) end
         end
         f:close()
     end
     OverlayFeed.joey = joey.money
 end
-local function on_joey(gained)
+local function on_joey(gained, exp)
     if type(gained) ~= "number" or gained <= 0 then return end
+    if type(exp) == "number" and exp > 0 then joey.exp = joey.exp + math.floor(exp) end
     pcall(pokerus_check)                        -- (a won battle: Pokerus may come with it)
     gained = math.floor(gained)
     -- (a file from before the wins were kept: as many as its money at this pay)
@@ -924,6 +930,7 @@ local function on_joey(gained)
     if f then
         f:write(tostring(joey.money), "\n", tostring(joey.wins), "\n")
         for _, r in ipairs(keep) do f:write(r[1], " ", r[2], "\n") end
+        f:write("exp ", tostring(joey.exp), "\n")
         f:close()
     end
 end

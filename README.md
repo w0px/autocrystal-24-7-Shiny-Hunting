@@ -4,6 +4,7 @@
 
 <p align="center">
   <b>The open-source bot behind the 24/7 Shiny Hunting stream, playing Pokémon Crystal</b><br>
+  Nobody is playing: the bot makes every decision itself, from the story to the team to where it hunts.<br>
   Built on <a href="https://github.com/w0px/autocrystal-Shiny-Hunting-Toolkit">autocrystal</a>, the shiny hunting user bot you can run yourself.
 </p>
 
@@ -16,6 +17,7 @@
 
 ## Table of Contents
 
+- [Nobody's Playing: the Bot Decides](#nobodys-playing-the-bot-decides)
 - [The Challenge](#the-challenge)
 - [The Ground Rules](#the-ground-rules)
 - [How a Section Works](#how-a-section-works)
@@ -33,6 +35,26 @@
 - [The Stream and Discord](#the-stream-and-discord)
 - [The Code](#the-code)
 - [Status](#status)
+
+## Nobody's Playing: the Bot Decides
+
+There's no one behind the controller and no one steering from the side. Once it's started, the bot runs the whole game on its own and makes every decision itself:
+
+| The bot... | How it decides |
+|---|---|
+| **plays the story** | walks to each event, talks to people, fights the trainers in its way and picks up what the story needs, found by the game's own event flags |
+| **decides where and when to hunt** | works out the best plan for the whole section from every encounter table, then rolls where to go next ([Picking Targets](#picking-targets-where-and-when-to-hunt)) |
+| **builds its team** | picks the catcher, the weakener, two specialists and the HM slave from what it has caught, scoring every possible team ([The Team](#the-team)) |
+| **replaces team members** | swaps in a better shiny when one comes along: walks to a Pokémon Center, uses the PC, trains the newcomer |
+| **trains** | decides who needs levels, how many, where, and whether a Pokémon fights alone or switch-trains |
+| **catches the shinies** | sleep, safe weakening, ball choice: worked out turn by turn from the game's damage and catch formulas ([Catching a Shiny](#catching-a-shiny)) |
+| **fights every battle** | picks moves, switches and runs from bad fights ([Battles](#battles)) |
+| **evolves the dex** | decides which copy evolves and which stays, and trains it there ([Evolutions](#evolutions)) |
+| **farms its own money** | takes Joey's number, answers his calls, beats him again and again, and saves up ([Money and Shopping](#money-and-shopping)) |
+| **shops and heals** | buys balls and potions when it needs them, and decides when a Pokémon Center is worth the walk ([Healing](#healing)) |
+| **runs its PC** | deposits, withdraws and changes boxes ([The PC](#the-pc)) |
+
+What people decide is the **rules**: this README, written into the bot's code before the run, plus a few settings (like the HP to heal at). During the run nobody picks a route, a team member or a move.
 
 ## The Challenge
 
@@ -54,11 +76,11 @@ It's a *living* dex: one shiny for every form. Three shiny Zubat means one stays
 
 ## How a Section Works
 
-Each section ends at a gym. Inside a section the bot loops:
+Each section ends at a gym. Inside a section the bot loops, deciding each step itself:
 
-1. **Story** up to the next gym: the events, trainers and items on the way.
-2. **Hunt** until every shiny the section offers is caught.
-3. **Evolve** whatever has to be evolved for the living dex.
+1. **Story** up to the next gym: it plays the events, trainers and items on the way.
+2. **Hunt** until every shiny the section offers is caught: it plans where to go, builds and retrains its team, and farms money as it needs it.
+3. **Evolve** whatever has to be evolved for the living dex: it picks the copies and trains them.
 4. **Beat the gym leader**, then on to the next section.
 
 The first section is everything before Falkner's gym: Routes 29 to 31, Route 36 up to Sudowoodo, the south of Route 46, Sprout Tower, Dark Cave's first room and the Ruins of Alph's inner chamber. That's 45 forms, from Rattata to a 1% Dunsparce.
@@ -108,6 +130,8 @@ Plus 10% for everything that isn't hunting (Joey, Pokémon Centers, catches), me
 
 *The maths and an example: [the planner](HOW-IT-WORKS.md#1-where-to-hunt-the-planner) and [the roll](HOW-IT-WORKS.md#2-the-roll-picking-a-spot).*
 
+Nobody tells the bot where to go: it decides where and when to hunt by itself.
+
 Every Pokémon has its own places and times: Gastly only at night, Teddiursa only in the morning, Dunsparce at 1% in Dark Cave. The bot knows every encounter table of the game, by map and time of day.
 
 - **A plan for the whole section.** The bot works out how many hours of each morning, day and night to spend where, so the section is finished as soon as possible. Every encounter counts, however rare the Pokémon it's still waiting for.
@@ -124,7 +148,7 @@ Every Pokémon has its own places and times: Gastly only at night, Teddiursa onl
   <img src="images/team.png" alt="The team: starter, catcher, weakener, specialist, HM slave" width="640">
 </p>
 
-Six slots, each with a job:
+The bot builds its own team. Nobody picks a team member: the bot decides who fills each job from the Pokémon it has caught, and replaces them when something better comes along. Six slots, each with a job:
 
 - **The starter** (Totodile) fights the story battles and gym leaders.
 - **The catcher** puts the shiny to sleep. Always the **Butterfree line** for its Sleep Powder: a regular Caterpie is trained up until a shiny Butterfree takes over.
@@ -132,15 +156,15 @@ Six slots, each with a job:
 - **Up to two specialists**, both shiny catches from the run, picked once Falkner is beaten. They're chosen by level, type coverage and rarity, a third each, so a rare shiny beats a common one of the same strength.
 - **The HM slave** carries the field moves (Cut, Surf, Strength, Whirlpool, ...) so nobody else has to. It's the **first shiny Sentret** the bot catches, evolved into a Furret. The only Pokémon that can take its job is a **shiny Krabby**, levelled into a Kingler.
 
-The catcher and the weakener are the only jobs a regular Pokémon may do. Everything else is a shiny the bot caught itself. When a better shiny comes along, it takes the job: the bot walks to a Pokémon Center, swaps it in from the PC and trains it.
+The catcher and the weakener are the only jobs a regular Pokémon may do. Everything else is a shiny the bot caught itself. When a better shiny comes along, the bot gives it the job on its own: it walks to a Pokémon Center, swaps the newcomer in from the PC and trains it.
 
-**Training:** specialists are trained to the next big fight's top level + 2 (Falkner's Pidgeotto is Lv 9, so Lv 11). A trainee fights alone when it wins comfortably, for double EXP, and switches out at the start of a fight otherwise, to share it.
+**Training:** the bot decides who needs levels and trains them itself. Specialists are trained to the next big fight's top level + 2 (Falkner's Pidgeotto is Lv 9, so Lv 11). A trainee fights alone when it wins comfortably, for double EXP, and switches out at the start of a fight otherwise, to share it.
 
 ## Catching a Shiny
 
 *Turn by turn, with every limit: [catching a shiny](HOW-IT-WORKS.md#4-catching-a-shiny-turn-by-turn).*
 
-When a shiny appears:
+When a shiny appears, the bot catches it by itself, deciding every turn:
 
 1. **Sleep.** The catcher uses its sleep move until the shiny is asleep, as often as it takes.
 2. **Weaken.** The weakener hits it down to about 40% HP, only with moves that **can't knock it out even with a critical hit and the highest damage roll**. The bot does the game's own damage maths for every hit.
@@ -152,7 +176,7 @@ If the shiny wakes up, it's put back to sleep. If the weakener falls asleep, the
 
 *Move choice, switching, running and training in detail: [battles](HOW-IT-WORKS.md#5-battles).*
 
-Every battle uses the real numbers from the game: types, stats, stat changes, moves and damage rolls.
+The bot fights every battle itself: story trainers, gym leaders, Joey, wild Pokémon. Every choice uses the real numbers from the game: types, stats, stat changes, moves and damage rolls.
 
 - **Best move:** the one that knocks the opponent out fastest, counting accuracy. Stat moves (Leer, Growl, ...) are used when they save a turn and it's safe.
 - **Switching:** to a teammate that clearly does better, after a faint to the best matchup, and when the trainer's next Pokémon is a bad match.
@@ -162,6 +186,8 @@ Every battle uses the real numbers from the game: types, stats, stat changes, mo
 
 ## Evolutions
 
+The bot works out which forms the living dex still needs, picks which copy evolves and which stays as it is, and trains it.
+
 - **Level evolutions** (Pidgeot at 36, Jumpluff at 27, ...) are trained up before the section's gym.
 - **Rare evolved forms are evolved, not hunted.** The Burned Tower has a 1% Weezing, but Koffing is 59% there, so the bot catches a second shiny Koffing and trains it to Lv 35. This applies whenever the pre-evolution is met at least twice as often in the section. A shiny Weezing that turns up anyway still counts.
 - **Friendship evolutions** (Crobat) are walked and fought until happy.
@@ -170,7 +196,7 @@ Every battle uses the real numbers from the game: types, stats, stat changes, mo
 
 ## Money and Shopping
 
-Money comes from **Youngster Joey**. The bot takes his phone number, and every time he calls for a rematch it goes to fight his Rattata: **$64** a win. Cave maps have no phone signal, so the bot weighs that in when it's waiting for his call.
+The bot farms its own money. It comes from **Youngster Joey**: the bot takes his phone number, and every time he calls for a rematch it goes to fight his Rattata, **$64** a win. Cave maps have no phone signal, so the bot weighs that in when it's waiting for his call.
 
 The only other numbers it takes are the **swarm callers'**: Hiker Anthony (Dunsparce), Bug Catcher Arnie (Yanma) and Fisher Ralph (Qwilfish). Their swarms turn a 1% Pokémon into a 30-40% one until midnight; the [FAQ](FAQ.md#what-are-swarms-and-why-does-the-bot-answer-the-phone) has the maths. (Planned: the bot doesn't take these numbers yet.)
 
@@ -180,6 +206,8 @@ The only other numbers it takes are the **swarm callers'**: Hiker Anthony (Dunsp
 - **A floor.** $500 always stays for emergencies.
 
 ## Healing
+
+The bot decides when a Pokémon needs healing and where.
 
 - **Pokémon Center first.** When the lead is low on HP, has a status, or runs out of PP for its attacks or sleep move, the bot walks to a Center.
 - **Before the first badge**, it's always the Center: Cherrygrove and Violet are never far.
@@ -192,7 +220,7 @@ The bot has a map of the whole game, made from the game's own data: every map, e
 
 - **Routes** are planned like a player would walk them: around trainers it hasn't fought, around tall grass when it's not hunting, and over ledges only in the right direction.
 - **Hunting** means walking loops through the grass or cave, not standing still.
-- **Story events** are found by their flags in the game's memory, the same way the game knows what has happened.
+- **The story** is played the same way: the bot finds the next event by its flag in the game's memory (the same way the game knows what has happened), walks there and does it.
 
 ## The PC
 
