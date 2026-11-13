@@ -165,10 +165,16 @@
           ]
         },
         {
-          "name": "bot-help",
+          "name": "bot-general",
           "kind": "text",
           "access": "chat",
           "topic": "Questions and bug reports about running autocrystal yourself"
+        },
+        {
+          "name": "screenshots",
+          "kind": "text",
+          "access": "chat",
+          "topic": "Clips and screenshots from the stream"
         }
       ]
     },
@@ -182,28 +188,16 @@
           "topic": "Talk about anything stream related"
         },
         {
-          "name": "shiny-talk",
+          "name": "off-topic",
           "kind": "text",
           "access": "chat",
-          "topic": "Hype the shinies, guess the next one"
-        },
-        {
-          "name": "screenshots",
-          "kind": "text",
-          "access": "chat",
-          "topic": "Clips and screenshots from the stream"
+          "topic": "Everything else"
         },
         {
           "name": "suggestions",
           "kind": "text",
           "access": "chat",
           "topic": "Ideas for the stream, the bot or the server"
-        },
-        {
-          "name": "off-topic",
-          "kind": "text",
-          "access": "chat",
-          "topic": "Everything else"
         }
       ]
     },
@@ -328,16 +322,15 @@
       "stream-links",
       "faq",
       "shinies",
-      "shiny-clips",
       "daily-log",
+      "shiny-clips",
       "releases",
       "readme",
-      "bot-help",
-      "general",
-      "shiny-talk",
+      "bot-general",
       "screenshots",
-      "suggestions",
-      "off-topic"
+      "general",
+      "off-topic",
+      "suggestions"
     ]
   },
   "settings_file": "../bot/modules/data/gui_settings.txt",
@@ -351,18 +344,35 @@
       "image": "art/welcome.png",
       "text": [
         "## {info} What this is",
-        "24/7 Shiny Hunting is a YouTube stream that never stops: **Pokémon Crystal**, played by **autocrystal**, a bot. The game is vanilla, it runs at normal speed, and there are no resets - every shiny you see happened live.",
+        "24/7 Shiny Hunting is a YouTube stream that never stops: **Pokémon Crystal**, played by **autocrystal**, a bot that makes every decision itself. The game is vanilla, it runs at normal speed, and there are no resets - every shiny you see happened live.",
         "",
         "## {ball} Where things are",
+        "**Info**",
+        "- <#rules> - the server rules",
+        "- <#announcements> - news about the stream",
         "- <#stream-links> - watch the stream",
+        "- <#faq> - the questions people ask, and the odds behind them",
+        "**Live hunting notifications**",
         "- <#shinies> - every shiny, perfect DV and 0/0/0/0, the moment it shows up",
+        "- <#daily-log> - the last 24 hours in numbers",
         "- <#shiny-clips> - the best moments",
-        "- <#readme> - how to run autocrystal yourself",
-        "- <#bot-help> - questions about the bot",
+        "**autocrystal, the bot you can run yourself**",
+        "- <#releases> - new versions with their patch notes",
+        "- <#readme> - how to set it up and use it",
+        "- <#bot-general> - questions and bug reports",
+        "- <#screenshots> - your own finds",
+        "**Community**",
         "- <#general> - chat",
+        "- <#off-topic> - everything else",
+        "- <#suggestions> - ideas for the stream, the bot or the server",
         "",
-        "## {info} Pings",
-        "Nobody gets pinged unless they ask for it. Pick yours in **Channels & Roles** at the top of the channel list, and change them any time."
+        "## {rotating_bear} Get pinged",
+        "Nobody gets pinged unless they ask for it. To pick your pings, click **Channels & Roles** at the very top of the channel list (just under the server name), then answer **Which pings do you want?**:",
+        "- {rotating_bear} **Shinies** - the *Shiny Ping* role: pinged in <#shinies> for every shiny",
+        "- {perfect} **Perfect & 0/0/0/0 DVs** - the *DV Ping* role: pinged for the rare DV hits",
+        "- {ball} **autocrystal releases** - the *Release Ping* role: pinged in <#releases> for new versions",
+        "- {no} **No pings** - just here to hang out",
+        "Change them any time the same way."
       ]
     },
     "rules": {
@@ -374,22 +384,44 @@
       "text": [
         "## {info} Questions people ask a lot",
         "",
+        "**The basics**",
         "- [Is the stream really live?](<https://github.com/w0px/autocrystal-24-7-Shiny-Hunting/blob/main/FAQ.md#is-the-stream-really-live>)",
+        "- [Is anyone controlling the bot?](<https://github.com/w0px/autocrystal-24-7-Shiny-Hunting/blob/main/FAQ.md#is-anyone-controlling-the-bot>)",
         "- [Is the game modified?](<https://github.com/w0px/autocrystal-24-7-Shiny-Hunting/blob/main/FAQ.md#is-the-game-modified>)",
         "- [Is the bot cheating?](<https://github.com/w0px/autocrystal-24-7-Shiny-Hunting/blob/main/FAQ.md#is-the-bot-cheating>)",
         "- [What happens if a shiny runs away or faints?](<https://github.com/w0px/autocrystal-24-7-Shiny-Hunting/blob/main/FAQ.md#what-happens-if-a-shiny-runs-away-or-faints>)",
+        "",
+        "**The odds**",
+        "- [What are DVs?](<https://github.com/w0px/autocrystal-24-7-Shiny-Hunting/blob/main/FAQ.md#what-are-dvs>)",
+        "- [Why exactly 1 in 8,192?](<https://github.com/w0px/autocrystal-24-7-Shiny-Hunting/blob/main/FAQ.md#why-exactly-1-in-8192>)",
+        "- [How many encounters does a shiny take?](<https://github.com/w0px/autocrystal-24-7-Shiny-Hunting/blob/main/FAQ.md#how-many-encounters-does-a-shiny-take>)",
+        "- [What do the percentages mean?](<https://github.com/w0px/autocrystal-24-7-Shiny-Hunting/blob/main/FAQ.md#what-do-the-percentages-mean>)",
+        "- [How fast is normal speed?](<https://github.com/w0px/autocrystal-24-7-Shiny-Hunting/blob/main/FAQ.md#how-fast-is-normal-speed>)",
+        "- [What does a shiny's Hidden Power look like?](<https://github.com/w0px/autocrystal-24-7-Shiny-Hunting/blob/main/FAQ.md#what-does-a-shinys-hidden-power-look-like>)",
+        "- [Why are there no shiny female starters?](<https://github.com/w0px/autocrystal-24-7-Shiny-Hunting/blob/main/FAQ.md#why-are-there-no-shiny-female-starters>)",
+        "- [How likely is the catch?](<https://github.com/w0px/autocrystal-24-7-Shiny-Hunting/blob/main/FAQ.md#how-likely-is-the-catch>)",
+        "- [How rare are perfect DVs, almost shinies and four of a kind?](<https://github.com/w0px/autocrystal-24-7-Shiny-Hunting/blob/main/FAQ.md#how-rare-are-perfect-dvs-almost-shinies-and-four-of-a-kind>)",
+        "",
+        "**Time**",
         "- [Why is it so slow?](<https://github.com/w0px/autocrystal-24-7-Shiny-Hunting/blob/main/FAQ.md#why-is-it-so-slow>)",
         "- [How long will it take?](<https://github.com/w0px/autocrystal-24-7-Shiny-Hunting/blob/main/FAQ.md#how-long-will-it-take>)",
+        "- [Why does the Bug-Catching Contest take decades?](<https://github.com/w0px/autocrystal-24-7-Shiny-Hunting/blob/main/FAQ.md#why-does-the-bug-catching-contest-take-decades>)",
+        "- [What are swarms, and why does the bot answer the phone?](<https://github.com/w0px/autocrystal-24-7-Shiny-Hunting/blob/main/FAQ.md#what-are-swarms-and-why-does-the-bot-answer-the-phone>)",
+        "",
+        "**The rules**",
+        "- [Why no breeding?](<https://github.com/w0px/autocrystal-24-7-Shiny-Hunting/blob/main/FAQ.md#why-no-breeding>)",
+        "- [What about Pokémon you only meet once?](<https://github.com/w0px/autocrystal-24-7-Shiny-Hunting/blob/main/FAQ.md#what-about-pokémon-you-only-meet-once>)",
+        "- [Why no Gengar, Machamp or Alakazam?](<https://github.com/w0px/autocrystal-24-7-Shiny-Hunting/blob/main/FAQ.md#why-no-gengar-machamp-or-alakazam>)",
+        "",
+        "**The bot**",
         "- [Why does it go back to the same route so often?](<https://github.com/w0px/autocrystal-24-7-Shiny-Hunting/blob/main/FAQ.md#why-does-it-go-back-to-the-same-route-so-often>)",
         "- [Why does it run from some wild Pokémon?](<https://github.com/w0px/autocrystal-24-7-Shiny-Hunting/blob/main/FAQ.md#why-does-it-run-from-some-wild-pokémon>)",
         "- [Why does it keep fighting Youngster Joey?](<https://github.com/w0px/autocrystal-24-7-Shiny-Hunting/blob/main/FAQ.md#why-does-it-keep-fighting-youngster-joey>)",
-        "- [Why does a regular Caterpie or Zubat have a job?](<https://github.com/w0px/autocrystal-24-7-Shiny-Hunting/blob/main/FAQ.md#why-does-a-regular-caterpie-or-zubat-have-a-job>)",
-        "- [Why no Gengar, Machamp or Alakazam?](<https://github.com/w0px/autocrystal-24-7-Shiny-Hunting/blob/main/FAQ.md#why-no-gengar-machamp-or-alakazam>)",
-        "- [What are DVs?](<https://github.com/w0px/autocrystal-24-7-Shiny-Hunting/blob/main/FAQ.md#what-are-dvs>)",
+        "- [Why does the bot catch with a Caterpie and a Zubat in the first section?](<https://github.com/w0px/autocrystal-24-7-Shiny-Hunting/blob/main/FAQ.md#why-does-the-bot-catch-with-a-caterpie-and-a-zubat-in-the-first-section>)",
         "- [Can I run the bot myself?](<https://github.com/w0px/autocrystal-24-7-Shiny-Hunting/blob/main/FAQ.md#can-i-run-the-bot-myself>)",
         "- [Where do I get notified about shinies?](<https://github.com/w0px/autocrystal-24-7-Shiny-Hunting/blob/main/FAQ.md#where-do-i-get-notified-about-shinies>)",
         "",
-        "-# How the bot works, in full: [autocrystal-24-7-Shiny-Hunting](<https://github.com/w0px/autocrystal-24-7-Shiny-Hunting>)"
+        "The whole [FAQ](<https://github.com/w0px/autocrystal-24-7-Shiny-Hunting/blob/main/FAQ.md>) has the maths. How the bot makes every decision: [How it works](<https://github.com/w0px/autocrystal-24-7-Shiny-Hunting/blob/main/HOW-IT-WORKS.md>)."
       ],
       "embed": true
     }

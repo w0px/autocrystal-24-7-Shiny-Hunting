@@ -39,7 +39,7 @@ Every number here comes from the game's own code (the [pokecrystal disassembly](
 - [Why does it go back to the same route so often?](#why-does-it-go-back-to-the-same-route-so-often)
 - [Why does it run from some wild Pokémon?](#why-does-it-run-from-some-wild-pokémon)
 - [Why does it keep fighting Youngster Joey?](#why-does-it-keep-fighting-youngster-joey)
-- [Why does a regular Caterpie or Zubat have a job?](#why-does-a-regular-caterpie-or-zubat-have-a-job)
+- [Why does the bot catch with a Caterpie and a Zubat in the first section?](#why-does-the-bot-catch-with-a-caterpie-and-a-zubat-in-the-first-section)
 - [Can I run the bot myself?](#can-i-run-the-bot-myself)
 - [Where do I get notified about shinies?](#where-do-i-get-notified-about-shinies)
 
@@ -182,17 +182,23 @@ Because it's normal speed and every shiny is earned: about 150 encounters an hou
 
 ### How long will it take?
 
-About **6 years** for the wild Pokémon of all eight Johto gyms (8 in 10 simulated runs land between 4.6 and 7.6 years), from simulating the bot's own planner with the game's real encounter tables. The Bug-Catching Contest comes on top of that, see below. Each section's numbers are in [the README](README.md#the-sections-and-how-long-they-take).
+From simulating the bot's own planner 100 times with the game's real encounter tables, then rounding up for real life (lost shinies, downtime, the story and training):
+
+- **The wild Pokémon of all eight Johto gyms: about 7.3 years.** The luckiest tenth of runs are done in 5.7 years, the unluckiest take over 9.
+- **With the Bug-Catching Contest: about 29 years**, because Scyther and Pinsir alone take about 22.5 (below), and as the rules stand the Whitney section waits for them.
+- **The one-time Pokémon** add about 2 months of soft resets.
+
+Each section's numbers, and every assumption, are in [the README](README.md#the-sections-and-how-long-they-take).
 
 ### Why does the Bug-Catching Contest take decades?
 
-Scyther and Pinsir exist **only** in the Bug-Catching Contest in National Park, at 5% each. The contest:
+Scyther and Pinsir exist **only** in the Bug-Catching Contest in National Park, at 5% each:
 
-- runs only on **Tuesday, Thursday and Saturday**,
-- lasts **20 minutes**, once a day,
-- gives about **50 encounters** at normal speed.
+- it runs only on **Tuesday, Thursday and Saturday**, once a day;
+- it lasts **20 minutes**;
+- in the contest, **40% of steps** in the extra-tall grass meet something (20% elsewhere, against 10% on a normal route), so nearly all of it is battles: about **57 encounters a contest**.
 
-That's about 7,800 contest encounters a year. A shiny Scyther needs 163,840 on average: **21 years**. Both Scyther *and* Pinsir: **31 years** on average (half of all runs within 26 years). Without breeding there's no faster way, so the contest is the one place where the challenge's maths really bites.
+That's about **8,900 contest encounters a year**. One shiny Scyther needs 8,192 ÷ 0.05 = 163,840 on average: **about 18 years**. Both Scyther *and* Pinsir: **about 22.5 years** for half of all runs, 27.5 on average, 7 years for the luckiest tenth and 54 for the unluckiest. Without breeding there's no faster way, so the contest is the one place where the challenge's maths really bites.
 
 ### What are swarms, and why does the bot answer the phone?
 
@@ -230,21 +236,86 @@ They evolve by trading. The bot plays alone, so trade evolutions are left out of
 
 ## The bot
 
+<a name="why-does-it-go-back-to-the-same-route-so-often"></a>
 ### Why does it go back to the same route so often?
 
-Because the maths says so. The planner works out, for the whole section, how many of each day's morning, day and night hours to spend where, so that **the slowest Pokémon still needed** gets done as soon as possible, then the next slowest, and so on. A spot gets hours only for what it's best at: Sprout Tower at night is 85% Gastly against 5% on the routes, so the night's Gastly hours go there. Where to go next is then a dice roll weighted by those hours, so it isn't always the same.
+Because that's where the maths sends it. For the whole section, the bot works out how to split each day's 6 morning, 8 day and 10 night hours between the spots, so that **the slowest Pokémon still needed** finishes as soon as possible.
 
+- **How it scores a spot:** shinies per hour = 3,600 ÷ seconds per encounter × the Pokémon's share there ÷ 8,192. Sprout Tower at night is 85% Gastly against 5% on the routes, so the night's Gastly hours go to the tower, even though the tower is slower (42 seconds an encounter against 23 on grass).
+- **Why it pays off:** at the start of the first section the plan finishes in about **938 days**. Splitting the hours evenly would take **3,686**.
+- **Why it repeats:** the plan only gives hours where they count. Before Falkner the mornings are almost all Dark Cave (Teddiursa, Dunsparce) and Route 46 (Phanpy), because those morning-only 5% Pokémon hold the whole section up.
+- **Why it isn't always the same:** where it goes is a dice roll weighted by those hours, rolled again when the time of day changes or after a catch. It also prefers routes with phone signal while it's waiting for Joey's call.
+
+The details are in [How it works](HOW-IT-WORKS.md#1-where-to-hunt-the-planner).
+
+<a name="why-does-it-run-from-some-wild-pokémon"></a>
 ### Why does it run from some wild Pokémon?
 
-When it isn't catching, it runs from anything that's a bad fight: a super-effective move, a move that can poison, paralyse or put to sleep, or nothing it can hurt. A fainted or poisoned teammate costs a walk to the Pokémon Center, and that's time not spent hunting.
+Every fight that isn't a catch or training costs time, and a fainted or poisoned teammate costs a walk to the Pokémon Center. So the bot checks each wild Pokémon when it appears, and again every turn, and runs when:
 
+- it has a **super-effective move that really hurts**: one expected to take 25% or more of our HP. A Lv 2 Spearow's Peck on Butterfree does 1-2 HP, so that isn't a reason;
+- it has a move that can **poison, paralyse or put to sleep**;
+- **nothing of ours can hurt it** (a Gastly against Normal moves);
+- ours is at **25% HP or less**, or out of PP.
+
+<a name="why-does-it-keep-fighting-youngster-joey"></a>
 ### Why does it keep fighting Youngster Joey?
 
-He's its job. Joey's rematch is the only money that keeps coming before the first badge ($64 a win), and Poké Balls cost money. He calls when he wants a rematch, and the bot goes and beats his Rattata again.
+Because he's the bot's only income before the first badge, and Poké Balls cost $200 each.
 
-### Why does a regular Caterpie or Zubat have a job?
+- **What he pays:** a trainer's prize is 4 × his class's base × his last Pokémon's level. Joey's rematch is a Lv 4 Rattata: 4 × 4 × 4 = **$64** a win, plus **48 EXP** for the party.
+- **How often:** in places with phone signal a call comes about every 25 minutes, and 2 out of 3 of Joey's calls are a rematch request. That's up to about 35 rematches a day, around $2,200.
+- **What it's saving for:** the bag is kept near **99 balls**, so a shiny with a hard catch rate never meets an empty bag. Once that's full, the bot keeps farming until it has a **$100,000** cushion, and stops once it's there.
 
-They're the catching crew. Butterfree's Sleep Powder puts a shiny to sleep (the only status that helps the catch, see above), and Zubat weakens it without risking a knockout: the bot checks every move against the highest damage roll *and* a critical hit before using it. They're the only Pokémon allowed to be regular, and a shiny one replaces them as soon as the bot catches it.
+<a name="why-does-a-regular-caterpie-or-zubat-have-a-job"></a>
+### Why does the bot catch with a Caterpie and a Zubat in the first section?
+
+Catching a shiny safely takes two things: it has to be **asleep**, and its HP has to be **low**, without ever knocking it out. Before Falkner, wild Pokémon go down to Lv 2, and no single Pokémon can do both jobs safely. So the bot uses two, picked by its own sums over every Pokémon it can meet before Falkner: 20 species, 45 species-and-level combinations.
+
+**The catcher: Caterpie → Butterfree, for Sleep Powder**
+
+Sleep is the only status that helps the catch: +10 out of 256, while paralysis and poison add nothing (a Gen 2 bug). A sleeping Pokémon also can't attack or flee. Caterpie evolves at Lv 7, Metapod at Lv 10, and Butterfree learns **Sleep Powder at Lv 15**.
+
+- **The best sleep move it can get:**
+
+  | | Butterfree | Gastly, Hoothoot, Poliwag |
+  |---|---|---|
+  | Sleep move | Sleep Powder, **75%** | Hypnosis, 60% |
+  | Tries until it sleeps, on average | **1.33** | 1.67 |
+  | Chance it takes 3 or more tries | **6%** | 16% |
+
+- **It outspeeds everything:** a Lv 15 Butterfree has a Speed of about 28. The fastest target before Falkner, a Lv 6 Gastly with the best possible Speed, has 16. So Butterfree always moves first, and the shiny is asleep before it can act. On average it loses about 1% of its HP per catch; a Poliwag catcher would lose 4%.
+- **Why Butterfree doesn't weaken too:** a Lv 2 target has so little HP that almost any critical hit knocks it out, even Butterfree's Confusion. So it's trained to Lv 15 and no further.
+
+**The weakener: Zubat, for Leech Life**
+
+The weakener needs a move weak enough to never knock out a target, that still hurts *every* target. The problem is **Gastly**: it's a Ghost, and Normal moves (Tackle, Scratch) do nothing to it. Zubat's **Leech Life** does a quarter damage to Gastly. That's tiny, but it's a hit that can't knock it out.
+
+| Weakener | Target levels it can bring down safely (of 45) |
+|---|---|
+| **Zubat** (Leech Life) | **45** |
+| Poliwag | 42 |
+| Hoothoot, Rattata, Pidgey, Ledyba, Spinarak, Caterpie | 41 (none of the Gastly) |
+
+Before every hit the bot works out the worst case: the **top damage roll**, a **critical hit** (×2 in Gen 2), every hit of a multi-hit move, and **25% on top**. It only uses the move if even that can't knock the shiny out.
+
+**Why Lv 8 to 10:** the bot scores each Zubat level by how many targets it can bring down to 40% HP safely, and how fast. A target counts fully if it takes 4 hits or fewer, less if it takes more. The bot then picks the **lowest level within 2% of the best score**: the score barely changes over a few levels, and a lower level means less training and less risk of a critical hit on a Lv 2 target. The Zubat's own Attack DV decides where that lands:
+
+| Zubat's Attack DV | Its level |
+|---|---|
+| 0-2 | Lv 10 |
+| 5-11 | Lv 9 |
+| 15 | Lv 8 |
+
+The weakener never fights Joey or other trainers: the EXP would push it past its level.
+
+**Regular for now, shiny as soon as possible**
+
+These two are the only jobs a regular (non-shiny) Pokémon may do. The bot needs them from the first hour, long before any shiny turns up. The bot replaces them by itself:
+- **A shiny Caterpie, Metapod or Butterfree** is trained to Lv 15 and becomes the catcher.
+- **A shiny Zubat** is trained to its own best level and becomes the weakener.
+
+The regular one goes into the PC at the next Pokémon Center. In later sections the targets are stronger, so the bot works the levels out again from that section's Pokémon.
 
 ### Can I run the bot myself?
 

@@ -91,26 +91,43 @@ The first section is everything before Falkner's gym: Routes 29 to 31, Route 36 
 
 Each section only needs what the ones before it didn't give: a Pidgey line finished before Falkner isn't hunted again. Every way the game offers to meet a wild Pokémon counts, from the section that unlocks it: the **Old Rod** after Falkner, **Headbutt** in Ilex Forest, **Rock Smash** after Sudowoodo, **Surf** and the **Good Rod** after Morty, and the swarm callers once their numbers are in the phone. A new method also opens up the places from earlier sections.
 
-| # | Section | New places and methods | Shinies to catch | Rarest ones still needed | Typical time | 1 in 10 runs |
+| # | Section | New places and methods | Shinies to catch | Rarest ones still needed | Typical time | Lucky / unlucky (1 in 10 runs) |
 |---|---|---|---|---|---|---|
-| 1 | Before Falkner | Routes 29-31, Route 36, south of Route 46, Sprout Tower, Dark Cave's first room, Ruins of Alph's inner chamber | 42 | Dunsparce 1%, Teddiursa 5% (morning), Phanpy 5% (morning), Hoppip 5%, Weedle 5% | **2.4 years** | under 1.6 / over 3.8 years |
-| 2 | Before Bugsy | Routes 32-33, Ruins of Alph, Union Cave, Slowpoke Well; **Old Rod**; Ralph's Qwilfish swarm | 21 | Onix 10%, Smeargle 10%, Qwilfish 15% (swarm), Krabby, Goldeen, Tentacool 15% (Old Rod) | **10 months** | under 7 / over 13 months |
-| 3 | Before Whitney | Ilex Forest, Routes 34-35, National Park; **Headbutt**; Arnie's Yanma swarm; the **Bug-Catching Contest** | 27 + Scyther and Pinsir | Ditto 5%, Jigglypuff 5%, Paras 5%, Aipom and Exeggcute 20% (rare trees); Scyther and Pinsir 5% (Contest only) | **9 months**, plus the Contest | under 6 / over 14 months |
-| 4 | Before Morty | Route 37, Burned Tower; **Rock Smash** | 4 | Shuckle 10% (rocks), Stantler 40%, two Koffing (one becomes the Weezing) | **2 months** | under 3 weeks / over 4 months |
-| 5 | Before Chuck | Routes 38-41, Olivine, Cianwood; **Surf** and the **Good Rod** | 12 | Tauros 5%, Miltank 5%, Mantine 10% (surfing), Staryu, Corsola, Shellder 10% (Good Rod) | **7 months** | under 4.5 / over 12 months |
-| 6 | Before Jasmine | Whirl Islands | 4 | Seel 25%, Horsea 30% (surfing) | **5 weeks** | under 3 weeks / over 2 months |
-| 7 | Before Pryce | Route 42, Mt. Mortar, Route 43, Lake of Rage | 5 | Farfetch'd 20%, Machop 20%, Marill 30% (surfing) | **2 months** | under 4 weeks / over 4 months |
-| 8 | Before Clair | Route 44, Ice Path, Route 45, Dark Cave's Blackthorn side | 13 | Skarmory 5%, Jynx 10%, Sneasel 10%, Dratini 10% (Good Rod) | **8 months** | under 5 / over 13 months |
-| | **All wild Pokémon of Johto** | | **128** | | **about 6 years** | under 4.6 / over 7.6 years |
+| 1 | Before Falkner | Routes 29-31, Route 36, south of Route 46, Sprout Tower, Dark Cave's first room, Ruins of Alph's inner chamber | 42 | Dunsparce 1%, Teddiursa 5% (morning), Phanpy 5% (morning), Hoppip 5%, Weedle 5% | **2.8 years** | 1.9 / 4.4 years |
+| 2 | Before Bugsy | Routes 32-33, Ruins of Alph, Union Cave, Slowpoke Well; **Old Rod**; Ralph's Qwilfish swarm | 21 | Onix 10%, Smeargle 10%, Qwilfish 15% (swarm), Krabby, Goldeen, Tentacool 15% (Old Rod) | **12 months** | 9 / 16 months |
+| 3 | Before Whitney | Ilex Forest, Routes 34-35, National Park; **Headbutt**; Arnie's Yanma swarm; the **Bug-Catching Contest** | 27 + Scyther and Pinsir | Ditto 5%, Jigglypuff 5%, Paras 5%, Aipom and Exeggcute 20% (rare trees); Scyther and Pinsir 5% (Contest only) | **11 months**, plus the Contest | 8 / 16 months |
+| 4 | Before Morty | Route 37, Burned Tower; **Rock Smash** | 4 | Shuckle 10% (rocks), Stantler 40%, two Koffing (one becomes the Weezing) | **2 months** | 6 weeks / 5 months |
+| 5 | Before Chuck | Routes 38-41, Olivine, Cianwood; **Surf** and the **Good Rod** | 12 | Tauros 5%, Miltank 5%, Mantine 10% (surfing), Staryu, Corsola, Shellder 10% (Good Rod) | **9 months** | 6 / 14 months |
+| 6 | Before Jasmine | Whirl Islands | 4 | Seel 25%, Horsea 30% (surfing) | **8 weeks** | 6 weeks / 3 months |
+| 7 | Before Pryce | Route 42, Mt. Mortar, Route 43, Lake of Rage | 5 | Farfetch'd 20%, Machop 20%, Marill 30% (surfing) | **3 months** | 7 weeks / 5 months |
+| 8 | Before Clair | Route 44, Ice Path, Route 45, Dark Cave's Blackthorn side | 13 | Skarmory 5%, Jynx 10%, Sneasel 10%, Dratini 10% (Good Rod) | **10 months** | 6 / 15 months |
+| | **Johto without the Contest** | | **128** | | **about 7.3 years** | 5.7 / 9.1 years |
+| | **Johto with the Contest** | | **130** | | **about 29 years** | the Contest decides it |
 
-*Typical time* is the median: half the runs are faster, half slower. *1 in 10 runs* is how fast the luckiest tenth and how slow the unluckiest tenth are. A percentage is the best chance to meet that Pokémon in one encounter anywhere in the section.
+*Typical time* is the median: half the runs are faster, half slower. *Lucky / unlucky* is how fast the luckiest tenth and how slow the unluckiest tenth of the runs are. A percentage is the best chance to meet that Pokémon in one encounter anywhere in the section.
 
-**On top of that:**
+### The Bug-Catching Contest
 
-- **The Bug-Catching Contest: Scyther and Pinsir, about 26 years** (31 on average; 8 years for the luckiest tenth, 62 for the unluckiest). They live only in the contest, at 5% each, and the contest is 20 minutes on Tuesdays, Thursdays and Saturdays: about 7,800 encounters a year. Without breeding there's no faster way, and as the rules stand the Whitney section waits for them. The [FAQ](FAQ.md#why-does-the-bug-catching-contest-take-decades) has the maths.
-- **One-time Pokémon**, about a dozen in Johto (Togepi, Spearow, Eevee, Sudowoodo, Raikou, Entei, Shuckle, Lapras, the Electrodes, Tyrogue, Suicune): soft resets, about 5 days each at normal speed. The red Gyarados is always shiny.
+Scyther and Pinsir live **only** in the Bug-Catching Contest in National Park, at 5% each. The contest is the slowest part of the whole challenge by far:
 
-**Where the numbers come from:** the bot's own planner, run 100 times through all eight sections with every wild table of the game (grass, caves, water, both rods, headbutt trees, rocks, swarms), 1 in 8,192 shinies and normal speed. Every shiny is caught, and each section's level evolutions are done before its gym. The speeds:
+| | |
+|---|---|
+| When | Tuesdays, Thursdays and Saturdays, once a day |
+| How long | 20 minutes |
+| Encounters | about **57 a contest**: in the contest, 40% of steps in the extra-tall grass meet something (20% elsewhere), so nearly all of it is battles at ~21 seconds each |
+| A year | about **8,900** contest encounters |
+| One shiny Scyther (or Pinsir) | 8,192 ÷ 0.05 = 163,840 encounters: **about 18 years** on average |
+| Both | **about 22.5 years** (half of all runs), **27.5** on average; 7 years for the luckiest tenth, 54 for the unluckiest |
+
+Without breeding there's no faster way, and as the rules stand the Whitney section waits for them: that's what turns about 7 years into about 29. The bot hunts everything else in between contests.
+
+### One-time Pokémon
+
+About a dozen in Johto (Togepi, Spearow, Eevee, Sudowoodo, Raikou, Entei, Shuckle, Lapras, the Electrodes, Tyrogue, Suicune): soft resets, about 5 days each at normal speed. They add about 2 months in all. The red Gyarados is always shiny.
+
+### Where the numbers come from
+
+**The hunt:** the bot's own planner, run 100 times through all eight sections with every wild table of the game (grass, caves, water, both rods, headbutt trees, rocks, swarms), 1 in 8,192 shinies and normal speed, with each section's level evolutions done before its gym. The speeds:
 
 | | Seconds per encounter | Source |
 |---|---|---|
@@ -122,7 +139,16 @@ Each section only needs what the ones before it didn't give: a Pidgey line finis
 | Headbutt | 28-33 | estimate: rare trees 80%, good trees 50% |
 | Rock Smash | ~50 | estimate: 40% per rock, rocks come back on a map change |
 
-Plus 10% for everything that isn't hunting (Joey, Pokémon Centers, catches), measured on whole game days. A swarm is counted as running 60% of the time once its caller's number is in the phone, and every tree map is assumed to have a rare tree for the bot's Trainer ID. It counts the hunt only: the story and training add days, not months.
+A swarm is counted as running 60% of the time once its caller's number is in the phone, and every tree map is assumed to have a rare tree for the bot's Trainer ID.
+
+**Rounded up for real life**, because the simulation is the best case in a few ways:
+
+- **+10% for whole days that aren't hunting:** Joey, Pokémon Centers, catches. Measured on the bot over whole game days.
+- **+10% for lost shinies:** the simulation catches every shiny. In the real game a shiny can flee or faint, and then that Pokémon is hunted again.
+- **+5% for downtime:** crashes, updates and maintenance.
+- **+2 weeks per section** for the story, training, evolving and the gym.
+
+So the times above are about a quarter longer than the simulation itself.
 
 **What can still change them:** the sections after Falkner are the plan and may still move around, and the fishing, Headbutt and Rock Smash speeds are estimates until the bot does them. The Super Rod, Kanto and the Elite Four come after Clair.
 
@@ -151,8 +177,8 @@ Every Pokémon has its own places and times: Gastly only at night, Teddiursa onl
 The bot builds its own team. Nobody picks a team member: the bot decides who fills each job from the Pokémon it has caught, and replaces them when something better comes along. Six slots, each with a job:
 
 - **The starter** (Totodile) fights the story battles and gym leaders.
-- **The catcher** puts the shiny to sleep. Always the **Butterfree line** for its Sleep Powder: a regular Caterpie is trained up until a shiny Butterfree takes over.
-- **The weakener** brings the shiny's HP down safely. Always a **Zubat**, trained to the level where it can't knock out even the weakest target with a critical hit. A shiny Zubat replaces the regular one.
+- **The catcher** puts the shiny to sleep. Always the **Butterfree line**: Sleep Powder lands 75% of the time (Hypnosis 60%), and at Lv 15 Butterfree outspeeds every wild Pokémon before Falkner. A regular Caterpie is trained to Lv 15 until a shiny one takes over.
+- **The weakener** brings the shiny's HP down safely. Always a **Zubat**: its Leech Life is the only move before Falkner that hurts every target, Ghost-type Gastly included, without risking a knockout. It's trained to Lv 8-10, depending on its Attack DV. A shiny Zubat replaces the regular one. ([Why these two, in numbers](FAQ.md#why-does-the-bot-catch-with-a-caterpie-and-a-zubat-in-the-first-section))
 - **Up to two specialists**, both shiny catches from the run, picked once Falkner is beaten. They're chosen by level, type coverage and rarity, a third each, so a rare shiny beats a common one of the same strength.
 - **The HM slave** carries the field moves (Cut, Surf, Strength, Whirlpool, ...) so nobody else has to. It's the **first shiny Sentret** the bot catches, evolved into a Furret. The only Pokémon that can take its job is a **shiny Krabby**, levelled into a Kingler.
 

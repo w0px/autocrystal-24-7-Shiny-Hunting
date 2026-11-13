@@ -145,6 +145,76 @@ def emoji_bytes(path, limit=256 * 1024):
         if buf.tell() <= limit or w < 32: return buf.getvalue(), ext
 
 
+def emoji_markup(E, name):
+    x = E.get(name)
+    return "<%s:%s:%s>" % ("a" if x.get("animated") else "", name, x["id"]) if x else ""
+
+
+def card_split(text, limit=4096, total=6000):
+    # A card (embed) holds 4,096 letters, a message's cards 6,000 in all: long
+    # text goes into more cards, cut between paragraphs.
+    parts, cur = [], ""
+    for block in text.split("\n\n"):
+        add = (cur + "\n\n" + block) if cur else block
+        if len(add) > limit and cur:
+            parts.append(cur); cur = block
+        else:
+            cur = add
+    if cur: parts.append(cur)
+    out, used = [], 0
+    for p in parts[:10]:
+        p = p[:limit]
+        if used + len(p) > total: break
+        out.append(p); used += len(p)
+    return out
+
+
+def do_posts(api, L, st, C, E, rel, save_state, only=None):
+    # The channels' own posts (welcome, rules, faq). A post with a picture
+    # and text is TWO messages, the picture first (the user, 2026-11-13: the
+    # banner belongs on top - Discord shows a message's attachment under its
+    # text). Kept by name in the state: the picture under the channel's
+    # name, the text under "<name>:text". Changed ones are edited in place.
+    say("Posts")
+    for cat in L["categories"]:
+        for spec in cat["channels"]:
+            if not spec.get("post") or spec["name"] not in C: continue
+            if only and spec["name"] not in only: continue
+            m = L["messages"][spec["post"]]
+            text = "\n".join(m["text"])
+            text = re.sub(r"\{(\w+)\}", lambda x: emoji_markup(E, x.group(1)), text)
+            text = re.sub(r"<#([\w-]+)>", lambda x: "<#%s>" % C[x.group(1)] if x.group(1) in C else "#" + x.group(1), text)
+            img = rel(m["image"]) if m.get("image") else None
+            files = [(os.path.basename(img), open(img, "rb").read())] if img and os.path.exists(img) else []
+            cid = C[spec["name"]]
+            msgs = []           # (state key, body, files, signature)
+            if text.strip():
+                if m.get("embed"):
+                    body = {"content": "", "embeds": [{"color": 0x8BC34A, "description": p} for p in card_split(text)], "allowed_mentions": {"parse": []}}
+                else:
+                    body = {"content": text[:2000], "embeds": [], "allowed_mentions": {"parse": []}}
+                tsig = hashlib.sha1(("text|" + text).encode()).hexdigest()
+            if files:
+                pic = {"content": "", "embeds": [], "allowed_mentions": {"parse": []}, "attachments": [{"id": 0, "filename": files[0][0]}]}
+                psig = hashlib.sha1(("pic|" + hashlib.sha1(files[0][1]).hexdigest()).encode()).hexdigest()
+                msgs.append((spec["name"], pic, files, psig))
+                if text.strip(): msgs.append((spec["name"] + ":text", body, [], tsig))
+            elif text.strip():
+                msgs.append((spec["name"], body, [], tsig))
+            for key, body, fl, sig in msgs:
+                old = st["posts"].get(key) or {}
+                label = "#%s%s" % (spec["name"], " (text)" if key.endswith(":text") else (" (picture)" if fl and len(msgs) > 1 else ""))
+                if old.get("id") and old.get("sig") == sig:
+                    say(" = %s" % label); continue
+                if old.get("id") and api.get("/channels/%s/messages/%s" % (cid, old["id"]), ok404=True):
+                    say(" ~ %s" % label); api.patch("/channels/%s/messages/%s" % (cid, old["id"]), body, fl)
+                    mid = old["id"]
+                else:
+                    say(" + %s" % label); mid = api.post("/channels/%s/messages" % cid, body, fl)["id"]
+                st["posts"][key] = {"id": mid, "sig": sig}
+                save_state()
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--dry-run", action="store_true")
@@ -159,6 +229,7 @@ def main():
     ap.add_argument("--webhooks-file", default=os.path.join(HERE, "webhooks.txt"))
     ap.add_argument("--settings-file", help="(tests) instead of the layout's settings_file")
     ap.add_argument("--api", default=API, help="(tests) a stand-in Discord")
+    ap.add_argument("--posts-only", help="only (re)post these channels' posts, e.g. welcome,faq - nothing else is touched")
     a = ap.parse_args()
 
     L = json.load(open(a.layout, encoding="utf-8"))
@@ -192,6 +263,14 @@ def main():
     st["guild"] = gid
     community = "COMMUNITY" in (g.get("features") or [])
     say("Server: %s · bot: %s" % (g["name"], me["username"]))
+    if a.posts_only:
+        # (just the posts: channel and emoji ids from the state, checked
+        # against the server so a renamed or deleted channel is skipped)
+        live = {c["id"] for c in api.get("/guilds/%s/channels" % gid)}
+        C = {n: (v if isinstance(v, str) else v.get("id")) for n, v in st["channels"].items()}
+        C = {n: i for n, i in C.items() if i in live}
+        do_posts(api, L, st, C, st["emoji"], rel, save_state, only=set(a.posts_only.split(",")))
+        say("Done (posts only)."); return
 
     # ---- the bot's name and picture ----------------------------------------
     b = L.get("bot") or {}
@@ -390,32 +469,7 @@ def main():
             save_state()
 
     # ---- welcome / rules posts ---------------------------------------------
-    say("Posts")
-    for cat in L["categories"]:
-        for spec in cat["channels"]:
-            if not spec.get("post") or spec["name"] not in C: continue
-            m = L["messages"][spec["post"]]
-            text = "\n".join(m["text"])
-            text = re.sub(r"\{(\w+)\}", lambda x: emoji_text(x.group(1)), text)
-            text = re.sub(r"<#([\w-]+)>", lambda x: "<#%s>" % C[x.group(1)] if x.group(1) in C else "#" + x.group(1), text)
-            img = rel(m["image"]) if m.get("image") else None
-            files = [(os.path.basename(img), open(img, "rb").read())] if img and os.path.exists(img) else []
-            body = {"content": text[:2000], "allowed_mentions": {"parse": []}}
-            if m.get("embed"):      # (a card holds 4,096 letters - long link lists)
-                body = {"content": "", "embeds": [{"color": 0x8BC34A, "description": text[:4096]}], "allowed_mentions": {"parse": []}}
-            if files: body["attachments"] = [{"id": 0, "filename": files[0][0]}]
-            sig = hashlib.sha1((text + "".join(hashlib.sha1(f[1]).hexdigest() for f in files)).encode()).hexdigest()
-            cid = C[spec["name"]]
-            old = st["posts"].get(spec["name"]) or {}
-            if old.get("id") and old.get("sig") == sig:
-                say(" = #%s" % spec["name"]); continue
-            if old.get("id") and api.get("/channels/%s/messages/%s" % (cid, old["id"]), ok404=True):
-                say(" ~ #%s" % spec["name"]); api.patch("/channels/%s/messages/%s" % (cid, old["id"]), body, files)
-                mid = old["id"]
-            else:
-                say(" + #%s" % spec["name"]); mid = api.post("/channels/%s/messages" % cid, body, files)["id"]
-            st["posts"][spec["name"]] = {"id": mid, "sig": sig}
-            save_state()
+    do_posts(api, L, st, C, E, rel, save_state)
 
     # ---- test pings: only you get the ping roles --------------------------
     if a.test_pings:
