@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>autocrystal encounter designs</title>
+<!--
+  The encounter panel's designs side by side, at the size your saved layout
+  gives it (and C also taller, since its rows need the height), with sample
+  data and the sprites animating. Pick one in editor.html ("Shows").
+  Not for OBS.
+-->
+<style>
+  body { margin: 0; padding: 16px 20px; background: #1d1f24; color: #ddd; font: 14px/1.4 system-ui, sans-serif; }
+  h2 { font-size: 16px; margin: 22px 0 4px; }
+  p { margin: 0 0 8px; color: #9aa3b2; max-width: 900px; }
+  .clip { position: relative; overflow: hidden; background: #2a2d34; }
+  .clip iframe { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; border: 0; transform-origin: 0 0; pointer-events: none; }
+</style>
+</head>
+<body>
+<div id="out"></div>
+<script src="layouts.js"></script>
+<script>
+(async () => {
+  const saved = await AC_LAYOUT.load();
+  const panel = saved.panels.find(p => p.type.startsWith("encounters")) || { w: 640, h: 224 };
+  const G = 8 * (parseInt(saved.scale, 10) || 2);
+  const tall = Math.max(panel.h, 23 * G);
+  const designs = [
+    ["encounters", panel.h, "A - icon rows",
+     "The current one big on the left with its stats and held item, the 5-6 before it as party-menu icons that bob like in the party screen: name, then DVs and item."],
+    ["encounters_log", panel.h, "B - text lines",
+     "The current one big (text under the picture), the ones before it one plain line each: name and DVs. Fits the most, about one a line."],
+    ["encounters_pics", panel.h, "C - picture rows, at your panel's size",
+     "The ones before it with their own small animated pictures; each needs about four tiles of height, so only a couple fit here..."],
+    ["encounters_pics", tall, "C - picture rows, taller panel",
+     "...and with a taller panel (" + Math.round(tall / G) + " tiles) five of them fit."],
+  ];
+  const zoom = Math.min(1.6, (innerWidth - 60) / panel.w);
+  for (const [type, h, title, text] of designs) {
+    const sec = document.createElement("section");
+    sec.innerHTML = `<h2>${title}</h2><p>${text}</p>`;
+    const clip = document.createElement("div");
+    clip.className = "clip";
+    clip.style.width = panel.w * zoom + "px";
+    clip.style.height = h * zoom + "px";
+    const frame = document.createElement("iframe");
+    frame.src = "scene.html?demo=1&edit=1";
+    frame.style.transform = `scale(${zoom})`;
+    const layout = { scale: saved.scale, clouds: saved.clouds, girl: saved.girl, game: { x: 0, y: 2000, w: 10, h: 10 },
+      panels: [{ type, x: 0, y: 0, w: panel.w, h }] };
+    const send = () => frame.contentWindow.postMessage({ type: "layout", layout }, "*");
+    frame.addEventListener("load", () => setTimeout(send, 400));
+    addEventListener("message", e => { if (e.source === frame.contentWindow && e.data && e.data.type === "scene-ready") send(); });
+    clip.appendChild(frame);
+    sec.appendChild(clip);
+    document.getElementById("out").appendChild(sec);
+  }
+})();
+</script>
+</body>
+</html>

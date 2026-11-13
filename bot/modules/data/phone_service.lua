@@ -1,0 +1,109 @@
+-- phone_service.lua (lives in modules/data/)
+-- Crystal's maps where no phone call comes (map group:number, as
+-- wMapGroup/wMapNumber): each map header's "phone service" flag (TRUE to
+-- prevent phone calls - pokecrystal's map macro), read from the ROM's
+-- MapGroupPointers (bank $25) on 2026-11-10. Caves, the Ruins' chambers,
+-- gyms, the Radio Tower... A call that's due there comes once the player
+-- is somewhere with service. 99 maps.
+
+return {
+    ["1:2"] = true,   -- Olivine Gym
+    ["2:2"] = true,   -- Mahogany Gym
+    ["3:13"] = true,   -- Burned Tower 1F
+    ["3:14"] = true,   -- Burned Tower B1F
+    ["3:17"] = true,   -- Radio Tower 1F
+    ["3:18"] = true,   -- Radio Tower 2F
+    ["3:19"] = true,   -- Radio Tower 3F
+    ["3:20"] = true,   -- Radio Tower 4F
+    ["3:21"] = true,   -- Radio Tower 5F
+    ["3:23"] = true,   -- Ruins of Alph Ho-Oh Chamber
+    ["3:24"] = true,   -- Ruins of Alph Kabuto Chamber
+    ["3:25"] = true,   -- Ruins of Alph Omanyte Chamber
+    ["3:26"] = true,   -- Ruins of Alph Aerodactyl Chamber
+    ["3:27"] = true,   -- Ruins of Alph Inner Chamber
+    ["3:29"] = true,   -- Ruins of Alph Ho-Oh Item Room
+    ["3:30"] = true,   -- Ruins of Alph Kabuto Item Room
+    ["3:31"] = true,   -- Ruins of Alph Omanyte Item Room
+    ["3:32"] = true,   -- Ruins of Alph Aerodactyl Item Room
+    ["3:33"] = true,   -- Ruins of Alph Ho-Oh Word Room
+    ["3:34"] = true,   -- Ruins of Alph Kabuto Word Room
+    ["3:35"] = true,   -- Ruins of Alph Omanyte Word Room
+    ["3:36"] = true,   -- Ruins of Alph Aerodactyl Word Room
+    ["3:37"] = true,   -- Union Cave 1F
+    ["3:38"] = true,   -- Union Cave B1F
+    ["3:39"] = true,   -- Union Cave B2F
+    ["3:40"] = true,   -- Slowpoke Well B1F
+    ["3:41"] = true,   -- Slowpoke Well B2F
+    ["3:48"] = true,   -- Mahogany Mart 1F
+    ["3:49"] = true,   -- Team Rocket Base B1F
+    ["3:50"] = true,   -- Team Rocket Base B2F
+    ["3:51"] = true,   -- Team Rocket Base B3F
+    ["3:53"] = true,   -- Goldenrod Underground
+    ["3:54"] = true,   -- Goldenrod Underground Switch Room Entrances
+    ["3:55"] = true,   -- Goldenrod Dept. Store B1F
+    ["3:56"] = true,   -- Goldenrod Underground Warehouse
+    ["3:57"] = true,   -- Mount Mortar 1F Outside
+    ["3:58"] = true,   -- Mount Mortar 1F Inside
+    ["3:59"] = true,   -- Mount Mortar 2F Inside
+    ["3:60"] = true,   -- Mount Mortar B1F
+    ["3:61"] = true,   -- Ice Path 1F
+    ["3:62"] = true,   -- Ice Path B1F
+    ["3:63"] = true,   -- Ice Path B2F Mahogany Side
+    ["3:64"] = true,   -- Ice Path B2F Blackthorn Side
+    ["3:65"] = true,   -- Ice Path B3F
+    ["3:66"] = true,   -- Whirl Island NW
+    ["3:67"] = true,   -- Whirl Island NE
+    ["3:68"] = true,   -- Whirl Island SW
+    ["3:69"] = true,   -- Whirl Island Cave
+    ["3:70"] = true,   -- Whirl Island SE
+    ["3:71"] = true,   -- Whirl Island B1F
+    ["3:72"] = true,   -- Whirl Island B2F
+    ["3:73"] = true,   -- Whirl Island Lugia Chamber
+    ["3:74"] = true,   -- Silver Cave Room 1
+    ["3:75"] = true,   -- Silver Cave Room 2
+    ["3:76"] = true,   -- Silver Cave Room 3
+    ["3:77"] = true,   -- Silver Cave Item Rooms
+    ["3:78"] = true,   -- Dark Cave (Violet Entrance)
+    ["3:79"] = true,   -- Dark Cave (Blackthorn Entrance)
+    ["3:80"] = true,   -- Dragon's Den 1F
+    ["3:81"] = true,   -- Dragon's Den B1F
+    ["3:82"] = true,   -- Dragon Shrine
+    ["3:83"] = true,   -- Tohjo Falls
+    ["3:84"] = true,   -- Diglett's Cave
+    ["3:85"] = true,   -- Mount Moon
+    ["3:87"] = true,   -- Rock Tunnel 1F
+    ["3:88"] = true,   -- Rock Tunnel B1F
+    ["3:91"] = true,   -- Victory Road
+    ["4:2"] = true,   -- Wise Trio's Room
+    ["4:7"] = true,   -- Ecruteak Gym
+    ["5:1"] = true,   -- Blackthorn Gym 1F
+    ["5:2"] = true,   -- Blackthorn Gym 2F
+    ["6:4"] = true,   -- Seafoam Gym
+    ["7:6"] = true,   -- Cerulean Gym
+    ["8:5"] = true,   -- Azalea Gym
+    ["10:7"] = true,   -- Violet Gym
+    ["11:3"] = true,   -- Goldenrod Gym
+    ["12:11"] = true,   -- Vermilion Gym
+    ["14:4"] = true,   -- Pewter Gym
+    ["16:3"] = true,   -- Will's Room
+    ["16:4"] = true,   -- Koga's Room
+    ["16:5"] = true,   -- Bruno's Room
+    ["16:6"] = true,   -- Karen's Room
+    ["16:7"] = true,   -- Lance's Room
+    ["16:8"] = true,   -- Hall of Fame
+    ["17:8"] = true,   -- Fuchsia Gym
+    ["20:1"] = true,   -- Pokémon Center 2F
+    ["20:2"] = true,   -- Trade Center
+    ["20:3"] = true,   -- Colosseum
+    ["20:4"] = true,   -- Time Capsule
+    ["20:5"] = true,   -- Mobile Trade Room
+    ["20:6"] = true,   -- Mobile Battle Room
+    ["21:21"] = true,   -- Celadon Gym
+    ["22:5"] = true,   -- Cianwood Gym
+    ["22:11"] = true,   -- Battle Tower 1F
+    ["22:12"] = true,   -- Battle Tower Battle Room
+    ["22:13"] = true,   -- Battle Tower Elevator
+    ["22:14"] = true,   -- Battle Tower Hallway
+    ["23:4"] = true,   -- Viridian Gym
+    ["25:4"] = true,   -- Saffron Gym
+}

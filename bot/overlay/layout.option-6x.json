@@ -1,0 +1,1149 @@
+{
+  "scale": 2,
+  "clouds": 0.45,
+  "girl": false,
+  "game": {
+    "x": 0,
+    "y": 0,
+    "w": 960,
+    "h": 864
+  },
+  "panels": [
+    {
+      "type": "chat",
+      "x": 960,
+      "y": 496,
+      "w": 960,
+      "h": 368
+    },
+    {
+      "type": "encounters_pics",
+      "x": 960,
+      "y": 224,
+      "w": 960,
+      "h": 272,
+      "areas": {
+        "list": {
+          "x": 20,
+          "y": 2,
+          "w": 36,
+          "h": 13
+        },
+        "current": {
+          "x": 6,
+          "y": 3,
+          "w": 14,
+          "h": 11
+        }
+      }
+    },
+    {
+      "type": "wild",
+      "x": 1248,
+      "y": 864,
+      "w": 672,
+      "h": 208,
+      "opts": {
+        "card": 30
+      }
+    },
+    {
+      "type": "shinies",
+      "x": 960,
+      "y": 0,
+      "w": 960,
+      "h": 224,
+      "areas": {
+        "row": {
+          "x": 3,
+          "y": 1,
+          "w": 54,
+          "h": 10
+        }
+      },
+      "opts": {
+        "card": 30
+      }
+    },
+    {
+      "type": "info",
+      "x": 0,
+      "y": 864,
+      "w": 1248,
+      "h": 208
+    }
+  ],
+  "visitorList": [
+    {
+      "species": 165,
+      "times": [
+        "MORN"
+      ],
+      "backdrops": [
+        "grass"
+      ]
+    },
+    {
+      "species": 166,
+      "times": [
+        "MORN"
+      ],
+      "backdrops": [
+        "grass"
+      ]
+    },
+    {
+      "species": 12,
+      "times": [
+        "MORN",
+        "DAY"
+      ],
+      "backdrops": [
+        "clouds",
+        "grass"
+      ]
+    },
+    {
+      "species": 187,
+      "times": [
+        "MORN",
+        "DAY"
+      ],
+      "backdrops": [
+        "grass"
+      ]
+    },
+    {
+      "species": 188,
+      "times": [
+        "MORN"
+      ],
+      "backdrops": [
+        "clouds"
+      ]
+    },
+    {
+      "species": 231,
+      "times": [
+        "MORN"
+      ],
+      "backdrops": [
+        "grass"
+      ]
+    },
+    {
+      "species": 16,
+      "times": [
+        "MORN",
+        "DAY"
+      ],
+      "backdrops": [
+        "clouds",
+        "grass"
+      ]
+    },
+    {
+      "species": 21,
+      "times": [
+        "MORN",
+        "DAY"
+      ],
+      "backdrops": [
+        "grass"
+      ]
+    },
+    {
+      "species": 17,
+      "times": [
+        "DAY"
+      ],
+      "backdrops": [
+        "grass"
+      ]
+    },
+    {
+      "species": 22,
+      "times": [
+        "DAY"
+      ],
+      "backdrops": [
+        "clouds",
+        "grass"
+      ]
+    },
+    {
+      "species": 189,
+      "times": [
+        "DAY"
+      ],
+      "backdrops": [
+        "clouds",
+        "grass"
+      ]
+    },
+    {
+      "species": 177,
+      "times": [
+        "DAY"
+      ],
+      "backdrops": [
+        "clouds",
+        "grass"
+      ]
+    },
+    {
+      "species": 83,
+      "times": [
+        "DAY"
+      ],
+      "backdrops": [
+        "clouds",
+        "grass"
+      ]
+    },
+    {
+      "species": 193,
+      "times": [
+        "DAY"
+      ],
+      "backdrops": [
+        "clouds",
+        "grass"
+      ]
+    },
+    {
+      "species": 226,
+      "times": [
+        "MORN",
+        "DAY"
+      ],
+      "backdrops": []
+    },
+    {
+      "species": 92,
+      "times": [
+        "NITE"
+      ],
+      "backdrops": [
+        "clouds",
+        "grass"
+      ]
+    },
+    {
+      "species": 93,
+      "times": [
+        "NITE"
+      ],
+      "backdrops": [
+        "clouds",
+        "grass"
+      ]
+    },
+    {
+      "species": 200,
+      "times": [
+        "NITE"
+      ],
+      "backdrops": [
+        "clouds",
+        "grass"
+      ]
+    },
+    {
+      "species": 198,
+      "times": [
+        "NITE"
+      ],
+      "backdrops": [
+        "clouds",
+        "grass"
+      ]
+    },
+    {
+      "species": 163,
+      "times": [
+        "NITE",
+        "DAY"
+      ],
+      "backdrops": [
+        "grass"
+      ]
+    },
+    {
+      "species": 164,
+      "times": [
+        "NITE"
+      ],
+      "backdrops": [
+        "grass"
+      ]
+    },
+    {
+      "species": 41,
+      "times": [
+        "NITE"
+      ],
+      "backdrops": [
+        "clouds"
+      ]
+    },
+    {
+      "species": 42,
+      "times": [
+        "NITE"
+      ],
+      "backdrops": [
+        "clouds"
+      ]
+    },
+    {
+      "species": 49,
+      "times": [
+        "NITE"
+      ],
+      "backdrops": [
+        "clouds",
+        "grass"
+      ]
+    },
+    {
+      "species": 131,
+      "times": [
+        "NITE"
+      ],
+      "backdrops": [
+        "water"
+      ]
+    },
+    {
+      "species": 251,
+      "times": [
+        "DAY"
+      ],
+      "backdrops": [
+        "clouds",
+        "grass"
+      ]
+    },
+    {
+      "species": 234,
+      "times": [
+        "NITE"
+      ],
+      "backdrops": [
+        "grass"
+      ]
+    },
+    {
+      "species": 224,
+      "times": [
+        "DAY",
+        "NITE",
+        "MORN"
+      ],
+      "backdrops": [
+        "water"
+      ]
+    },
+    {
+      "species": 223,
+      "times": [
+        "MORN",
+        "DAY"
+      ],
+      "backdrops": [
+        "water"
+      ]
+    },
+    {
+      "species": 222,
+      "times": [
+        "MORN",
+        "DAY"
+      ],
+      "backdrops": [
+        "water"
+      ]
+    },
+    {
+      "species": 151,
+      "times": [
+        "MORN",
+        "DAY",
+        "NITE"
+      ],
+      "backdrops": [
+        "clouds",
+        "grass",
+        "water"
+      ]
+    },
+    {
+      "species": 139,
+      "times": [
+        "MORN",
+        "DAY",
+        "NITE"
+      ],
+      "backdrops": [
+        "water"
+      ]
+    },
+    {
+      "species": 119,
+      "times": [
+        "MORN",
+        "DAY",
+        "NITE"
+      ],
+      "backdrops": [
+        "water"
+      ]
+    },
+    {
+      "species": 90,
+      "times": [
+        "MORN",
+        "DAY",
+        "NITE"
+      ],
+      "backdrops": [
+        "water"
+      ]
+    },
+    {
+      "species": 72,
+      "times": [
+        "MORN",
+        "DAY",
+        "NITE"
+      ],
+      "backdrops": [
+        "water"
+      ]
+    },
+    {
+      "species": 9,
+      "times": [
+        "MORN",
+        "DAY",
+        "NITE"
+      ],
+      "backdrops": [
+        "water"
+      ]
+    },
+    {
+      "species": 8,
+      "times": [
+        "MORN",
+        "DAY",
+        "NITE"
+      ],
+      "backdrops": [
+        "water"
+      ]
+    },
+    {
+      "species": 7,
+      "times": [
+        "MORN",
+        "DAY",
+        "NITE"
+      ],
+      "backdrops": [
+        "water"
+      ]
+    },
+    {
+      "species": 76,
+      "times": [
+        "MORN",
+        "DAY"
+      ],
+      "backdrops": [
+        "grass"
+      ]
+    },
+    {
+      "species": 105,
+      "times": [
+        "MORN",
+        "DAY"
+      ],
+      "backdrops": [
+        "grass"
+      ]
+    },
+    {
+      "species": 134,
+      "times": [
+        "MORN",
+        "DAY"
+      ],
+      "backdrops": [
+        "water"
+      ]
+    },
+    {
+      "species": 186,
+      "times": [
+        "MORN",
+        "DAY",
+        "NITE"
+      ],
+      "backdrops": [
+        "water"
+      ]
+    },
+    {
+      "species": 207,
+      "times": [
+        "DAY"
+      ],
+      "backdrops": [
+        "grass"
+      ]
+    },
+    {
+      "species": 26,
+      "times": [
+        "DAY",
+        "MORN"
+      ],
+      "backdrops": [
+        "grass"
+      ]
+    },
+    {
+      "species": 25,
+      "times": [
+        "DAY"
+      ],
+      "backdrops": [
+        "grass"
+      ]
+    },
+    {
+      "species": 1,
+      "times": [
+        "MORN",
+        "DAY"
+      ],
+      "backdrops": [
+        "grass"
+      ]
+    },
+    {
+      "species": 91,
+      "times": [
+        "MORN",
+        "DAY"
+      ],
+      "backdrops": [
+        "water"
+      ]
+    },
+    {
+      "species": 142,
+      "times": [
+        "MORN",
+        "DAY"
+      ],
+      "backdrops": [
+        "clouds"
+      ]
+    },
+    {
+      "species": 146,
+      "times": [
+        "MORN",
+        "DAY",
+        "NITE"
+      ],
+      "backdrops": [
+        "grass"
+      ]
+    },
+    {
+      "species": 195,
+      "times": [
+        "MORN",
+        "DAY",
+        "NITE"
+      ],
+      "backdrops": [
+        "clouds",
+        "grass"
+      ]
+    },
+    {
+      "species": 225,
+      "times": [
+        "MORN",
+        "DAY",
+        "NITE"
+      ],
+      "backdrops": [
+        "grass"
+      ]
+    },
+    {
+      "species": 250,
+      "times": [
+        "MORN",
+        "DAY",
+        "NITE"
+      ],
+      "backdrops": [
+        "clouds"
+      ]
+    },
+    {
+      "species": 230,
+      "times": [
+        "MORN",
+        "DAY"
+      ],
+      "backdrops": [
+        "water"
+      ]
+    },
+    {
+      "species": 216,
+      "times": [
+        "MORN",
+        "DAY"
+      ],
+      "backdrops": [
+        "grass"
+      ]
+    },
+    {
+      "species": 196,
+      "times": [
+        "DAY",
+        "MORN"
+      ],
+      "backdrops": [
+        "grass"
+      ]
+    },
+    {
+      "species": 162,
+      "times": [
+        "MORN",
+        "DAY"
+      ],
+      "backdrops": [
+        "grass"
+      ]
+    },
+    {
+      "species": 143,
+      "times": [
+        "DAY",
+        "NITE",
+        "MORN"
+      ],
+      "backdrops": [
+        "grass"
+      ]
+    },
+    {
+      "species": 99,
+      "times": [
+        "MORN",
+        "DAY",
+        "NITE"
+      ],
+      "backdrops": [
+        "water"
+      ]
+    },
+    {
+      "species": 77,
+      "times": [
+        "DAY",
+        "MORN"
+      ],
+      "backdrops": [
+        "grass"
+      ]
+    },
+    {
+      "species": 94,
+      "times": [
+        "NITE"
+      ],
+      "backdrops": [
+        "grass"
+      ]
+    },
+    {
+      "species": 125,
+      "times": [
+        "MORN",
+        "DAY"
+      ],
+      "backdrops": [
+        "grass"
+      ]
+    },
+    {
+      "species": 149,
+      "times": [
+        "MORN",
+        "DAY"
+      ],
+      "backdrops": [
+        "clouds",
+        "grass"
+      ]
+    },
+    {
+      "species": 168,
+      "times": [
+        "NITE"
+      ],
+      "backdrops": [
+        "grass"
+      ]
+    },
+    {
+      "species": 212,
+      "times": [
+        "MORN",
+        "DAY"
+      ],
+      "backdrops": [
+        "grass"
+      ]
+    },
+    {
+      "species": 211,
+      "times": [
+        "MORN",
+        "DAY",
+        "NITE"
+      ],
+      "backdrops": [
+        "water"
+      ]
+    },
+    {
+      "species": 245,
+      "times": [
+        "MORN",
+        "DAY"
+      ],
+      "backdrops": [
+        "grass"
+      ]
+    },
+    {
+      "species": 203,
+      "times": [
+        "MORN",
+        "NITE"
+      ],
+      "backdrops": [
+        "grass"
+      ]
+    },
+    {
+      "species": 197,
+      "times": [
+        "NITE"
+      ],
+      "backdrops": [
+        "grass"
+      ]
+    },
+    {
+      "species": 169,
+      "times": [
+        "MORN",
+        "NITE"
+      ],
+      "backdrops": [
+        "clouds"
+      ]
+    },
+    {
+      "species": 133,
+      "times": [
+        "MORN",
+        "DAY"
+      ],
+      "backdrops": [
+        "grass"
+      ]
+    },
+    {
+      "species": 132,
+      "times": [
+        "MORN",
+        "DAY"
+      ],
+      "backdrops": [
+        "grass"
+      ]
+    },
+    {
+      "species": 127,
+      "times": [
+        "MORN"
+      ],
+      "backdrops": [
+        "grass"
+      ]
+    },
+    {
+      "species": 121,
+      "times": [
+        "MORN",
+        "DAY",
+        "NITE"
+      ],
+      "backdrops": [
+        "water"
+      ]
+    },
+    {
+      "species": 116,
+      "times": [
+        "MORN",
+        "DAY",
+        "NITE"
+      ],
+      "backdrops": [
+        "water"
+      ]
+    },
+    {
+      "species": 115,
+      "times": [
+        "MORN",
+        "DAY"
+      ],
+      "backdrops": [
+        "grass"
+      ]
+    },
+    {
+      "species": 112,
+      "times": [
+        "MORN",
+        "DAY"
+      ],
+      "backdrops": [
+        "grass"
+      ]
+    },
+    {
+      "species": 87,
+      "times": [
+        "MORN",
+        "DAY",
+        "NITE"
+      ],
+      "backdrops": [
+        "water"
+      ]
+    },
+    {
+      "species": 65,
+      "times": [
+        "MORN",
+        "DAY",
+        "NITE"
+      ],
+      "backdrops": [
+        "grass"
+      ]
+    },
+    {
+      "species": 18,
+      "times": [
+        "MORN",
+        "DAY"
+      ],
+      "backdrops": [
+        "grass"
+      ]
+    },
+    {
+      "species": 57,
+      "times": [
+        "MORN",
+        "DAY"
+      ],
+      "backdrops": [
+        "grass"
+      ]
+    },
+    {
+      "species": 45,
+      "times": [
+        "MORN",
+        "DAY"
+      ],
+      "backdrops": [
+        "grass"
+      ]
+    },
+    {
+      "species": 32,
+      "times": [
+        "MORN",
+        "DAY"
+      ],
+      "backdrops": [
+        "grass"
+      ]
+    },
+    {
+      "species": 85,
+      "times": [
+        "MORN",
+        "DAY"
+      ],
+      "backdrops": [
+        "grass"
+      ]
+    },
+    {
+      "species": 78,
+      "times": [
+        "MORN",
+        "DAY"
+      ],
+      "backdrops": [
+        "grass"
+      ]
+    },
+    {
+      "species": 86,
+      "times": [
+        "MORN",
+        "DAY",
+        "NITE"
+      ],
+      "backdrops": [
+        "water"
+      ]
+    },
+    {
+      "species": 96,
+      "times": [
+        "NITE"
+      ],
+      "backdrops": [
+        "grass"
+      ]
+    },
+    {
+      "species": 103,
+      "times": [
+        "MORN",
+        "DAY"
+      ],
+      "backdrops": [
+        "grass"
+      ]
+    },
+    {
+      "species": 130,
+      "times": [
+        "MORN",
+        "DAY",
+        "NITE"
+      ],
+      "backdrops": [
+        "water"
+      ]
+    },
+    {
+      "species": 129,
+      "times": [
+        "MORN",
+        "DAY",
+        "NITE"
+      ],
+      "backdrops": [
+        "water"
+      ]
+    },
+    {
+      "species": 150,
+      "times": [
+        "MORN",
+        "DAY"
+      ],
+      "backdrops": [
+        "grass"
+      ]
+    },
+    {
+      "species": 170,
+      "times": [
+        "MORN",
+        "DAY",
+        "NITE"
+      ],
+      "backdrops": [
+        "water"
+      ]
+    },
+    {
+      "species": 192,
+      "times": [
+        "MORN",
+        "DAY"
+      ],
+      "backdrops": [
+        "grass"
+      ]
+    },
+    {
+      "species": 63,
+      "times": [
+        "MORN",
+        "DAY"
+      ],
+      "backdrops": [
+        "grass"
+      ]
+    },
+    {
+      "species": 37,
+      "times": [
+        "MORN",
+        "DAY"
+      ],
+      "backdrops": [
+        "grass"
+      ]
+    },
+    {
+      "species": 5,
+      "times": [
+        "MORN",
+        "DAY"
+      ],
+      "backdrops": [
+        "grass"
+      ]
+    },
+    {
+      "species": 4,
+      "times": [
+        "MORN",
+        "DAY"
+      ],
+      "backdrops": [
+        "grass"
+      ]
+    },
+    {
+      "species": 50,
+      "times": [
+        "MORN",
+        "DAY"
+      ],
+      "backdrops": [
+        "grass"
+      ]
+    },
+    {
+      "species": 53,
+      "times": [
+        "MORN",
+        "DAY"
+      ],
+      "backdrops": [
+        "grass"
+      ]
+    },
+    {
+      "species": 59,
+      "times": [
+        "MORN",
+        "DAY"
+      ],
+      "backdrops": [
+        "grass"
+      ]
+    },
+    {
+      "species": 81,
+      "times": [
+        "MORN",
+        "DAY"
+      ],
+      "backdrops": [
+        "grass"
+      ]
+    },
+    {
+      "species": 114,
+      "times": [
+        "MORN",
+        "DAY"
+      ],
+      "backdrops": [
+        "grass"
+      ]
+    },
+    {
+      "species": 138,
+      "times": [
+        "MORN",
+        "DAY",
+        "NITE"
+      ],
+      "backdrops": [
+        "water"
+      ]
+    },
+    {
+      "species": 141,
+      "times": [
+        "MORN",
+        "DAY",
+        "NITE"
+      ],
+      "backdrops": [
+        "water"
+      ]
+    },
+    {
+      "species": 190,
+      "times": [
+        "MORN",
+        "DAY"
+      ],
+      "backdrops": [
+        "grass"
+      ]
+    }
+  ],
+  "visitorSize": 0.65,
+  "visitors": 0.6,
+  "meadow": 0.3,
+  "scenery": {
+    "feet": 12,
+    "trees": 3,
+    "treeSoft": 21,
+    "treeFade": 33,
+    "meadowThin": 1.4,
+    "meadowFade": 26,
+    "waterFade": 42,
+    "waterSize": 2,
+    "waterSpeed": 0.5,
+    "meadowSpeed": 0.65,
+    "waterHeight": 0.7
+  },
+  "water": 0.25
+}

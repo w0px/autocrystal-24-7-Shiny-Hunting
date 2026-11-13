@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>autocrystal clouds</title>
+<!--
+  The scene's sky, for OBS: a Browser Source the size of the scene, at the
+  bottom of the source list. The clouds drift across, faint.
+
+    opacity=0.35   how strong the clouds are (0-1)
+    bg=ffffff      the colour behind them (no # ), or "none" for clear -
+                   white matches the cloud picture's own bottom edge
+    speed=90       seconds for one full drift; 0 = still
+    scale=2        size of the cloud picture
+-->
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; }
+  #sky {
+    position: absolute; inset: 0;
+    background-image: url("gfx/clouds.gif");
+    background-repeat: repeat-x;
+    background-position: 0 0;
+    image-rendering: pixelated;
+  }
+  @keyframes drift { from { background-position-x: 0; } to { background-position-x: var(--tile-width); } }
+</style>
+</head>
+<body>
+<div id="sky"></div>
+<script>
+  const p = new URLSearchParams(location.search);
+  const sky = document.getElementById("sky");
+  const bg = p.get("bg") || "ffffff";
+  document.body.style.background = bg === "none" ? "transparent" : "#" + bg.replace(/[^0-9a-fA-F]/g, "");
+  sky.style.opacity = p.get("opacity") || "0.35";
+  const scale = parseFloat(p.get("scale") || "1");
+  const img = new Image();
+  img.onload = () => {
+    const w = img.width * scale, h = img.height * scale;
+    sky.style.backgroundSize = `${w}px ${h}px`;
+    const speed = parseFloat(p.get("speed") || "90");
+    if (speed > 0) {
+      sky.style.setProperty("--tile-width", `${w}px`);
+      sky.style.animation = `drift ${speed}s linear infinite`;
+    }
+  };
+  img.src = "gfx/clouds.gif";
+</script>
+</body>
+</html>

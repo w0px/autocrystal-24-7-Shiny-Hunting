@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>autocrystal stage preview</title>
+<!--
+  A preview of the OBS scene in any browser: clouds at the bottom, a stand-in
+  for the game, the scene on top - scaled to fit the window. Not for OBS.
+    ?live=1         the bot's real data instead of the demo
+-->
+<style>
+  html, body { margin: 0; height: 100%; background: #222; overflow: hidden; }
+  #stage { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; transform-origin: 0 0; }
+  #stage iframe { position: absolute; inset: 0; width: 1920px; height: 1080px; border: 0; }
+  #game {
+    position: absolute; background: #f8f8f8; color: #888; font: 40px monospace;
+    display: flex; align-items: center; justify-content: center;
+  }
+</style>
+</head>
+<body>
+<div id="stage">
+  <iframe src="clouds.html"></iframe>
+  <div id="game"></div>
+  <iframe id="scene"></iframe>
+</div>
+<script src="layouts.js"></script>
+<script>
+  const p = new URLSearchParams(location.search);
+  // The game stand-in goes where the saved layout puts the game.
+  AC_LAYOUT.load().then(layout => {
+    const { x, y, w, h } = layout.game;
+    const game = document.getElementById("game");
+    Object.assign(game.style, { left: x + "px", top: y + "px", width: w + "px", height: h + "px" });
+    game.textContent = `GAME CAPTURE ${w}x${h}`;
+  });
+  // The demo, with the preview's own options passed on (?mode=fish|tree,
+  // ?hour=, ?daylen=, ?event=visitor,rain, ?band=grass); ?live=1 for the real feed.
+  const pass = new URLSearchParams({ demo: "1" });
+  for (const k of ["mode", "hour", "daylen", "event", "band", "debug", "rainalpha"]) if (p.has(k)) pass.set(k, p.get(k));
+  document.getElementById("scene").src = "scene.html" + (p.get("live") === "1" ? "" : "?" + pass);
+  const fit = () => {
+    const s = Math.min(innerWidth / 1920, innerHeight / 1080);
+    document.getElementById("stage").style.transform = `scale(${s})`;
+  };
+  addEventListener("resize", fit);
+  fit();
+</script>
+</body>
+</html>

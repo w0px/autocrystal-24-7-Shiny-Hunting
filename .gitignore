@@ -1,0 +1,40 @@
+# Personal files the bot and the Discord tools write - never commit these.
+
+# The Discord bot token, settings (webhooks, ping ids), stats, records, logs
+bot/token.txt
+bot/modules/data/*.txt
+bot/modules/*.txt
+bot/data/*_stats.txt
+bot/logs/
+bot/autosaves/
+*.State
+*.bak
+*.old
+*.signed
+*.part
+__pycache__/
+
+# Sprites fetched by "Download sprites..." (download_sprites.ps1) and the
+# versions made from them - everyone downloads their own
+bot/data/sprites/normal/*.png
+bot/data/sprites/shiny/
+bot/data/sprites/still/
+bot/data/sprites/animated*/
+
+# The overlay's game graphics, copied from the pokecrystal disassembly
+bot/overlay/gfx/
+
+# Custom emoji for the Discord server
+bot/bot emojies/
+
+# The Discord server tools' private state: ids, webhook links, tokens
+discord-server/server_state.json
+discord-server/webhooks.txt
+discord-server/readme_webhook.txt
+discord-server/github_secrets.env
+discord-server/bot_token.txt
+discord-server/art/
+
+# BizHawk itself isn't part of the repository
+BizHawk/*
+!BizHawk/README.txt

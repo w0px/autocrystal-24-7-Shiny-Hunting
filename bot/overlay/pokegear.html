@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>autocrystal Pokegear</title>
+<!--
+  The bot's Pokegear, for OBS: one Browser Source per card, each sized
+  160x144 times the scale (default 4: 640x576), placed next to the game.
+  Drawn from the game's own tiles, tilemaps, palettes and font (gsc.js).
+
+    /pokegear.html?card=radio   the bot's lines, in the radio's text box
+    /pokegear.html?card=clock   the time and the hunt's numbers
+    /pokegear.html?card=phone   the latest shinies, listed like contacts
+
+  More options (after the card, joined with &):
+    scale=4    pixels per Game Boy pixel
+    frame=1    text box frame, 1-9 like the game's Options
+    girl=1     Kris's Pokegear colours
+    speed=30   milliseconds per letter
+    demo=1     sample lines and numbers, without the bot
+-->
+<style>
+  html, body { margin: 0; background: transparent; overflow: hidden; }
+  canvas { display: block; image-rendering: pixelated; }
+</style>
+</head>
+<body>
+<canvas id="gear"></canvas>
+<script src="gsc.js"></script>
+<script>
+(async () => {
+  const params = new URLSearchParams(location.search);
+  const CARD = ["radio", "clock", "phone"].includes(params.get("card")) ? params.get("card") : "radio";
+  const SCALE = Math.max(1, parseInt(params.get("scale") || "4", 10));
+  const LETTER_MS = Math.max(5, parseInt(params.get("speed") || "30", 10));
+  const DEMO = params.get("demo") === "1";
+  const LINE = 18;               // letters per text box line, as in the game
+  const PAGE_HOLD_MS = 1500;
+  const MESSAGE_HOLD_MS = 2800;
+  const POLL_MS = 300;
+
+  const gsc = await GSC.load("gfx/", { frame: parseInt(params.get("frame") || "1", 10), girl: params.get("girl") === "1" });
+  const canvas = document.getElementById("gear");
+  const arrow = await loadArrow();
+
+  let state = DEMO ? {
+    station: "SHINY HUNT", location: "ROUTE 29", target: "SENTRET",
+    encounters: 18342, session: 412, shinies: 7, recent: "NOCTOWL,GEODUDE,ZUBAT,PIDGEY,SENTRET",
+  } : {};
+  let page = ["", ""];            // what the text box shows now
+  let showArrow = false;
+  let blink = true;
+
+  const fmt = n => Number(n || 0).toLocaleString("en-US");
+  const fit = (s, w) => String(s || "").toUpperCase().slice(0, w);
+  const center = (s, w) => { s = fit(s, w); const pad = Math.floor((w - s.length) / 2); return " ".repeat(pad) + s; };
+
+  function render() {
+    const s = gsc.pokegearScreen(CARD);
+    if (CARD === "radio") {
+      // The station box, where the game names the channel.
+      s.text(2, 9, center(state.station || "AUTOCRYSTAL", 16));
+      s.text(1, 14, page[0]);
+      s.text(1, 16, page[1]);
+      if (showArrow && blink) s.put(18, 17, GSC.CHARS["▼"]);
+    } else if (CARD === "clock") {
+      const now = new Date();
+      const day = now.toLocaleDateString("en-US", { weekday: "long" }).toUpperCase();
+      const h = now.getHours(), m = String(now.getMinutes()).padStart(2, "0");
+      // Where Pokegear_UpdateClock puts them: the time at 3,5, the day at 6,8.
+      s.text(4, 5, `${String((h % 12) || 12).padStart(2, " ")}:${m} ${h < 12 ? "AM" : "PM"}`);
+      s.text(6, 8, day.slice(0, 10));
+      s.text(1, 14, `TOTAL ${fmt(state.encounters).padStart(12)}`);
+      s.text(1, 16, `SHINIES ${fmt(state.shinies).padStart(10)}`);
+    } else if (CARD === "phone") {
+      // The contact list: the latest shinies, newest first.
+      const recent = String(state.recent || "").split(",").map(x => x.trim()).filter(Boolean).slice(0, 4);
+      // Like the contact list: a name every other line from 2,4.
+      recent.forEach((name, i) => s.text(2, 4 + i * 2, fit(name, 15)));
+      if (!recent.length) s.text(2, 4, "NONE YET");
+      s.text(1, 14, "LATEST SHINIES");
+      s.text(1, 16, fit(`${fmt(state.shinies)} IN ALL`, LINE));
+    }
+    gsc.draw(canvas, s, SCALE);
+    if (arrow) {
+      // The card indicator under the icons (AnimatePokegearModeIndicatorArrow).
+      const slot = { clock: 0, phone: 2, radio: 3 }[CARD];
+      const ctx = canvas.getContext("2d");
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(arrow, slot * 16 * SCALE, 16 * SCALE, 16 * SCALE, 16 * SCALE);
+    }
+  }
+
+  // The arrow sprite (top 16x16 of pokegear_sprites.png), white made clear.
+  async function loadArrow() {
+    try {
+      const img = new Image();
+      img.src = "gfx/pokegear_sprites.png";
+      await img.decode();
+      const c = document.createElement("canvas");
+      c.width = 16; c.height = 16;
+      const ctx = c.getContext("2d");
+      ctx.drawImage(img, 0, 0, 16, 16, 0, 0, 16, 16);
+      const d = ctx.getImageData(0, 0, 16, 16);
+      for (let i = 0; i < d.data.length; i += 4) if (d.data[i] > 200) d.data[i + 3] = 0;
+      ctx.putImageData(d, 0, 0);
+      return c;
+    } catch (e) { return null; }
+  }
+
+  // ----- the text box (radio card) -----
+  const queue = [];
+  let busy = false;
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+  function wrap(text) {
+    const lines = [];
+    for (const para of String(text).split("\n")) {
+      let line = "";
+      for (let word of para.split(/\s+/).filter(Boolean)) {
+        while (word.length > LINE) { if (line) { lines.push(line); line = ""; } lines.push(word.slice(0, LINE)); word = word.slice(LINE); }
+        if (!line) line = word;
+        else if (line.length + 1 + word.length <= LINE) line += " " + word;
+        else { lines.push(line); line = word; }
+      }
+      if (line) lines.push(line);
+    }
+    const pages = [];
+    for (let i = 0; i < lines.length; i += 2) pages.push([lines[i], lines[i + 1] || ""]);
+    return pages.length ? pages : [["", ""]];
+  }
+
+  async function show(text) {
+    const pages = wrap(text);
+    for (let p = 0; p < pages.length; p++) {
+      showArrow = false;
+      page = ["", ""];
+      const ms = queue.length > 1 ? Math.max(5, LETTER_MS / 3) : LETTER_MS;
+      for (let l = 0; l < 2; l++) {
+        for (const ch of pages[p][l]) {
+          page[l] += ch;
+          render();
+          if (ch !== " ") await sleep(ms);
+        }
+      }
+      const more = p < pages.length - 1;
+      showArrow = more || queue.length > 0;
+      render();
+      await sleep(more ? PAGE_HOLD_MS : (queue.length > 1 ? MESSAGE_HOLD_MS / 3 : MESSAGE_HOLD_MS));
+    }
+    showArrow = false;
+    render();
+  }
+
+  async function run() {
+    if (busy) return;
+    busy = true;
+    while (queue.length) await show(queue.shift());
+    busy = false;
+  }
+
+  function say(text) {
+    queue.push(text);
+    while (queue.length > 4) queue.shift();
+    run();
+  }
+
+  // ----- talking to the relay -----
+  let lastId = null;
+  async function poll() {
+    try {
+      const r = await fetch("/messages?since=" + (lastId === null ? 0 : lastId), { cache: "no-store" });
+      const data = await r.json();
+      if (data.state && Object.keys(data.state).length) { state = data.state; if (!busy) render(); }
+      const list = data.messages || [];
+      if (CARD === "radio") {
+        if (lastId === null) { if (list.length) say(list[list.length - 1].text); }
+        else list.forEach(m => say(m.text));
+      }
+      lastId = data.latest || 0;
+    } catch (e) {
+      // The relay isn't up (yet): keep the last picture, keep trying.
+    }
+    setTimeout(poll, POLL_MS);
+  }
+
+  setInterval(() => { blink = !blink; if (showArrow) render(); }, 450);
+  if (CARD === "clock") setInterval(render, 10000);
+  render();
+  if (DEMO) {
+    if (CARD === "radio") [
+      "Hello! I'm hunting for shiny POKéMON, all by myself.",
+      "SENTRET shows up during the day on ROUTE 29. Hunting there until 6 PM.",
+      "JOEY wants a rematch! 4 POKé BALLS left, so I'm heading to ROUTE 30.",
+    ].forEach(say);
+  } else {
+    poll();
+  }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,2308 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>autocrystal scene</title>
+<!--
+  The whole stream layout, for OBS: one Browser Source, 1920x1080, ABOVE the
+  game capture. Where everything goes comes from layout.json (made once with
+  editor.html; see layouts.js) - the game capture goes where the layout's
+  "game" box is, and stays clear here. Everything else is drawn from the
+  game's own tiles, font, Pokegear frame, Pokemon pictures and party icons
+  (gsc.js); clouds drift along the top of every panel. Put clouds.html at
+  the very bottom for the gaps.
+
+  Picks up a newly saved layout.json by itself within a few seconds.
+
+  Options (after the address, joined with &):
+    speed=30   milliseconds per letter in the chat
+    demo=1     sample data, without the bot
+    edit=1     driven by editor.html (layouts come from it, not the file)
+  crop=t,r,b,l  the browser preview of BizHawk (below): pixels of the
+             captured window to cut off - its title bar, menu and status bar
+  fit=stretch   the preview fills the game box (default: keeps its shape)
+
+  In a normal browser (not OBS, not the editor) a "Show BizHawk here" button
+  sits in the game box: it asks the browser to share a window (pick
+  BizHawk) and shows it there, under the panels - a preview only; OBS uses
+  its own capture under this page and never shows the button.
+-->
+<style>
+  html, body { margin: 0; background: transparent; overflow: hidden; }
+  canvas { display: block; position: relative; z-index: 1; pointer-events: none; }
+  #game { position: absolute; z-index: 0; overflow: hidden; display: none; }
+  #game video { position: absolute; }
+  #pick { position: absolute; z-index: 2; display: none; font: 600 22px sans-serif; padding: 14px 22px;
+          border: 2px solid #444; border-radius: 10px; background: #f4f4f4; color: #222; cursor: pointer;
+          width: 420px; box-sizing: border-box; }
+  #pick small { display: block; font-weight: 400; font-size: 14px; margin-top: 4px; color: #555; }
+</style>
+</head>
+<body>
+<div id="game"><video id="gameVideo" autoplay muted playsinline></video></div>
+<button id="pick">Show BizHawk here<small>pick the BizHawk window - preview only, OBS has its own capture</small></button>
+<canvas id="scene"></canvas>
+<script src="gsc.js"></script>
+<script src="layouts.js"></script>
+<script>
+(async () => {
+  const params = new URLSearchParams(location.search);
+  const LETTER_MS = Math.max(5, parseInt(params.get("speed") || "30", 10));
+  const DEMO = params.get("demo") === "1";
+  const EDIT = params.get("edit") === "1";
+  // The pinned news's look (?pin=, for trying them - the user, 2026-11-10:
+  // "other presentation options, other borders, make it stand out"):
+  // words joined by "+": frameN (one of the game's 9 text frames instead of
+  // the first), title (SHINY! / RARE! in the top edge), icon (its party
+  // icon, in its own colours, at the right). The user's pick, 2026-11-10:
+  // the title, in frame 6.
+  const PIN_STYLE = (params.get("pin") || "frame6+title").split("+").filter(Boolean);
+  const PIN_FRAME = Number((PIN_STYLE.find(w => /^frame\d$/.test(w)) || "").slice(5)) || 0;
+
+  let LAYOUT = await AC_LAYOUT.load(params.get("layout"));   // (?layout=<file>.json: another layout to show - layouts.js)
+  let SCALE, T, W, H, gsc, PAL;
+  const loaded = {};   // the game's graphics, per palette (Gold's or Kris's)
+  async function apply(layout) {
+    LAYOUT = layout;
+    SCALE = Math.max(1, Math.min(4, parseInt(layout.scale, 10) || 2));
+    T = 8 * SCALE;
+    W = Math.ceil(1920 / T); H = Math.ceil(1080 / T);
+    const key = layout.girl ? "girl" : "boy";
+    loaded[key] = loaded[key] || await GSC.load("gfx/", { girl: !!layout.girl, boxFrame: PIN_FRAME });
+    gsc = loaded[key]; PAL = gsc.palettes[0];
+    placeGame();
+  }
+
+  // ----- the browser preview of BizHawk (not in OBS: it captures the game itself) -----
+  const IN_OBS = typeof window.obsstudio !== "undefined";
+  const CROP = (params.get("crop") || "0,0,0,0").split(",").map(v => Math.max(0, parseInt(v, 10) || 0));
+  while (CROP.length < 4) CROP.push(0);
+  const STRETCH = params.get("fit") === "stretch";
+  const gameBox = document.getElementById("game"), gameVideo = document.getElementById("gameVideo");
+  const pick = document.getElementById("pick");
+  let sharing = false;
+  function placeGame() {
+    const g = (LAYOUT && LAYOUT.game) || { x: 0, y: 0, w: 1248, h: 848 };
+    Object.assign(gameBox.style, { left: g.x + "px", top: g.y + "px", width: g.w + "px", height: g.h + "px" });
+    const show = !IN_OBS && !EDIT && !sharing;
+    pick.style.display = show ? "block" : "none";
+    if (show) {
+      pick.style.left = (g.x + g.w / 2 - pick.offsetWidth / 2) + "px";
+      pick.style.top = (g.y + g.h / 2 - pick.offsetHeight / 2) + "px";
+    }
+    const vw = gameVideo.videoWidth, vh = gameVideo.videoHeight;
+    if (!vw || !vh) return;
+    // what's left of the window after the crop, scaled into the box
+    const cw = Math.max(1, vw - CROP[1] - CROP[3]), ch = Math.max(1, vh - CROP[0] - CROP[2]);
+    let sx = g.w / cw, sy = g.h / ch;
+    if (!STRETCH) sx = sy = Math.min(sx, sy);
+    const ox = (g.w - cw * sx) / 2, oy = (g.h - ch * sy) / 2;
+    Object.assign(gameVideo.style, { width: vw * sx + "px", height: vh * sy + "px",
+      left: (ox - CROP[3] * sx) + "px", top: (oy - CROP[0] * sy) + "px" });
+    // (the box itself: just the part showing the game, so nothing spills)
+    Object.assign(gameBox.style, { left: (g.x + ox) + "px", top: (g.y + oy) + "px", width: cw * sx + "px", height: ch * sy + "px" });
+    gameVideo.style.left = (-CROP[3] * sx) + "px"; gameVideo.style.top = (-CROP[0] * sy) + "px";
+  }
+  pick.addEventListener("click", async () => {
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: { displaySurface: "window", frameRate: 60 }, audio: false, selfBrowserSurface: "exclude" });
+      gameVideo.srcObject = stream;
+      sharing = true; gameBox.style.display = "block";
+      stream.getVideoTracks()[0].addEventListener("ended", () => {
+        sharing = false; gameBox.style.display = "none"; gameVideo.srcObject = null; placeGame();
+      });
+      placeGame();
+    } catch (e) { /* cancelled */ }
+  });
+  gameVideo.addEventListener("loadedmetadata", placeGame);
+  gameVideo.addEventListener("resize", placeGame);
+  await apply(LAYOUT);
+
+  const [SPECIES, ICONS] = await Promise.all([
+    fetch("gfx/species.json").then(r => r.json()), fetch("gfx/icons.json").then(r => r.json())]);
+  const name = id => SPECIES[id - 1] || "?????";
+  const canvas = document.getElementById("scene");
+  canvas.width = 1920; canvas.height = 1080;
+  const ctx = canvas.getContext("2d");
+  const rgb = c => `rgb(${c[0]},${c[1]},${c[2]})`;
+
+  // ----- data -----
+  const now = Math.floor(Date.now() / 1000);
+  // Route 29 as the game has it (data/wild/johto_grass.asm): morning and day
+  // the same, Hoothoot and Rattata at night.
+  const DEMO_DAY = [
+    { species: 16, odds: 50, low: 2, high: 3 }, { species: 161, odds: 40, low: 2, high: 3 },
+    { species: 19, odds: 5, low: 2, high: 2 }, { species: 187, odds: 5, low: 3, high: 3 }];
+  const DEMO_NITE = [
+    { species: 163, odds: 55, low: 2, high: 3 }, { species: 19, odds: 45, low: 2, high: 3 }];
+  // ?mode=fish / ?mode=tree: the preview as the Fishing or Headbutt module
+  // sends it - the Good Rod at the shore (data/wild/fish.asm: Corsola by
+  // day, Staryu by night), Route 29's common trees (data/wild/treemons.asm).
+  const DEMO_MODE = params.get("mode");
+  const DEMO_FISH_DAY = [
+    { species: 129, odds: 35, low: 20, high: 20 }, { species: 98, odds: 56, low: 20, high: 20 }, { species: 222, odds: 9, low: 20, high: 20 }];
+  const DEMO_FISH_NITE = [
+    { species: 129, odds: 35, low: 20, high: 20 }, { species: 98, odds: 56, low: 20, high: 20 }, { species: 120, odds: 9, low: 20, high: 20 }];
+  const DEMO_TREE = [
+    { species: 163, odds: 50, low: 10, high: 10 }, { species: 167, odds: 15, low: 10, high: 10 },
+    { species: 165, odds: 15, low: 10, high: 10 }, { species: 102, odds: 20, low: 10, high: 10 }];
+  const demoHere = () => DEMO_MODE === "fish"
+    ? { kind: "fish", rod: "GOOD ROD", now: "DAY", list: DEMO_FISH_DAY, morn: DEMO_FISH_DAY, day: DEMO_FISH_DAY, nite: DEMO_FISH_NITE }
+    : DEMO_MODE === "tree" ? { kind: "tree", tree: "COMMON", list: DEMO_TREE }
+    : { kind: "walk", now: "DAY", list: DEMO_DAY, morn: DEMO_DAY, day: DEMO_DAY, nite: DEMO_NITE, water: [] };
+  // What the demo's random encounters come from.
+  const demoWild = tod => DEMO_MODE === "fish" ? (tod === "NITE" ? DEMO_FISH_NITE : DEMO_FISH_DAY)
+    : DEMO_MODE === "tree" ? DEMO_TREE : (tod === "NITE" ? DEMO_NITE : DEMO_DAY);
+  let state = DEMO ? {
+    location: "ROUTE 29", time_of_day: "DAY", clock: { day: 1, hours: 16, minutes: 24 },
+    total: 50546, shinies: 9, since_shiny: 12433, per_hour: 412, runtime: 189240, joey: 1152, phone: { mins: 12 },
+    next: "6 PM - ROUTE 31 FOR GASTLY", phase: { caught: 2, total: 26 },
+    encounters: [
+      { species: 161, atk: 9, def: 4, spe: 12, spc: 7, item: "BERRY" },
+      { species: 16, atk: 6, def: 10, spe: 10, spc: 10 },
+      { species: 19, atk: 0, def: 6, spe: 2, spc: 10 },
+      { species: 161, atk: 12, def: 4, spe: 9, spc: 13, item: "BERRY" },
+      { species: 16, atk: 15, def: 7, spe: 9, spc: 7 },
+      { species: 187, atk: 3, def: 11, spe: 8, spc: 2 },
+    ],
+    current: { species: 161, atk: 9, def: 4, spe: 12, spc: 7, item: "BERRY", streak: 1 },
+    recent_shinies: [
+      { species: 41, atk: 15, def: 10, spe: 10, spc: 10, time: now - 288000 },
+      { species: 74, atk: 7, def: 10, spe: 10, spc: 10, time: now - 241200 },
+      { species: 163, atk: 6, def: 10, spe: 10, spc: 10, time: now - 3600 },
+      { species: 16, atk: 2, def: 10, spe: 10, spc: 10, time: now - 600000 },
+    ],
+    targets: [161, 187, 19, 16], caught: [16, 19],
+    here: demoHere(),
+  } : {};
+
+  const fmt = n => Number(n || 0).toLocaleString("en-US");
+  // How long the bot has run: "2D 04H 12M", "4H 12M", "12M" ("-" before it's known).
+  const runtimeText = secs => {
+    if (secs == null) return "-";
+    const d = Math.floor(secs / 86400), h = Math.floor(secs % 86400 / 3600), m = Math.floor(secs % 3600 / 60);
+    return d ? `${d}D ${String(h).padStart(2, "0")}H ${String(m).padStart(2, "0")}M` : h ? `${h}H ${String(m).padStart(2, "0")}M` : `${m}M`;
+  };
+  const up = s => String(s == null ? "" : s).toUpperCase();
+  const pad = (s, w) => String(s).padStart(w).slice(-w);
+  const dvs = m => (m && m.atk != null) ? `${m.atk}/${m.def}/${m.spe}/${m.spc}` : "?/?/?/?";
+  const DAYS = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
+  const TOD_WORD = { MORN: "MORNING", DAY: "DAYTIME", NITE: "NIGHT" };
+  function ago(t, short) {
+    if (!t) return "";
+    const s = Math.max(0, Math.floor(Date.now() / 1000) - t);
+    const d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60);
+    if (short) return d ? `${d}D` : h ? `${h}H` : `${m}M`;
+    return (d ? `${d}D ${h}H` : h ? `${h}H ${m}M` : `${m}M`) + " AGO";
+  }
+  function clockText() {
+    const c = state.clock;
+    if (!c) return "";
+    const h = c.hours, m = String(c.minutes).padStart(2, "0");
+    return `${DAYS[c.day] || ""} ${(h % 12) || 12}:${m} ${h < 12 ? "AM" : "PM"}`;
+  }
+
+  // ----- the chat log: {id, text, time} oldest first -----
+  let log = [], blink = true;
+
+  // ----- the modules -----
+  // Each draws into a panel x, y, w, h (tiles). Two tile layers: the frames,
+  // and the content drawn half a tile lower - a panel h tiles high holds
+  // h-3 rows with half a tile clear above and below. Text starts two tiles
+  // in from each side: the Pokegear frame is thick.
+  let frames, s, panels, pictures, icons, lists = [];
+  // The streak badge ("x7" by the current encounter - the user, 2026-11-11):
+  // where it goes ({text, right, row} in tiles), and when its number last
+  // went up (it pops then).
+  let badges = [], drawnBadges = [], streakPump = { key: null, at: 0 };
+  const line = (x0, x1, y) => { for (let i = x0; i < x1; i++) s.put(i, y, GSC.CHARS["─"], 0); };
+  const smallTiles = () => Math.ceil(56 / T);   // a small picture (1 screen pixel a pixel), in tiles
+
+  // The chat, like an IRC channel: only what matters (a shiny, a catch,
+  // trouble), newest at the top, each with the time it came in, a blank
+  // line between. A new message slides the others down - slower than the
+  // encounter list. The ▼ blinks after the newest.
+  const two = n => String(n).padStart(2, "0");
+  const stamp = t => { const d = new Date((t || 0) * 1000); return `${two(d.getHours())}:${two(d.getMinutes())}`; };
+  function chat(x, y, w, h) {
+    const l = x + 2, r = x + w - 2, bottom = y + h - 3;
+    let top = y + 3;
+    centred(l, r - l, y + 1, "LOG");
+    // The big news (a shiny, perfect DVs): pinned above the rest in the
+    // game's own text box for 8 hours (the user, 2026-11-10: "a sticky
+    // event... stays for like 12h and gets highlighted"), its time in front
+    // like every line ("remove the 1 hour ago and add the regular timestamp
+    // like the other news"). At most 3 rows; the log goes on under it.
+    const pin = state.pin && Date.now() / 1000 < state.pin.till ? state.pin : null;
+    const indent = 6;
+    if (pin) {
+      const inner = r - l, withIcon = PIN_STYLE.includes("icon") && pin.species;
+      const rows = wrapText(readable(pin.text), inner - indent - (withIcon ? 3 : 0)).slice(0, 3);
+      s.textbox(l - 1, top - 1, rows.length, inner, 0, PIN_FRAME ? 0x61 : 0x79);
+      // (how long ago, in the title - always: the user, 2026-11-10, "lets
+      // always keep the xx ago not only after midnight"; the time column
+      // stays like every line's; gone after 8 hours). SHINY! at the left
+      // of the top edge, the time ago at the right - out of the LOG
+      // heading's way (the user, 2026-11-10).
+      if (PIN_STYLE.includes("title")) {
+        const secs = Date.now() / 1000 - (pin.time || 0), hrs = Math.floor(secs / 3600), mins = Math.floor(secs / 60);
+        const ago = mins < 1 ? " JUST NOW " : hrs < 1 ? " " + mins + (mins === 1 ? " MINUTE AGO " : " MINUTES AGO ")
+          : " " + hrs + (hrs === 1 ? " HOUR AGO " : " HOURS AGO ");
+        const head = /shiny/i.test(pin.text) ? " SHINY! " : " RARE! ";
+        s.text(l + 1, top - 1, head.slice(0, Math.max(0, inner - 2)));
+        const at = l + inner - 1 - ago.length;
+        if (at >= l + 1 + head.length) s.text(at, top - 1, ago);
+      }
+      s.text(l, top, stamp(pin.time));
+      rows.forEach((t, i) => s.text(l + indent, top + i, t));
+      if (withIcon) icons.push([pin.species, r - 2, top + (rows.length > 1 ? 0.5 : 0) - 0.25, null, true]);
+      top += rows.length + 2;
+    }
+    // The entries one under the other with LOG_GAP Game Boy pixels between
+    // them, not a blank row (the user, 2026-11-11: the log held 3-4) - drawn
+    // touching on the tile layer, each painted that much lower than the one
+    // above (entries). Only whole ones show (fullPx: where the last whole
+    // one ends, in pixels below top).
+    const list = new gsc.Screen(W, H, null);
+    const roomPx = (bottom - top + 1) * 8;
+    let ry = top, firstHeight = 0, key = null, fullPx = 0;
+    const entries = [];
+    // (routine lines keep one entry each - the newest of its kind, at its
+    // place in time; the older ones of that kind drop out: the user,
+    // 2026-11-11, "the log... its only talking about joey" - so the rare
+    // ones stay up for hours, like a feed)
+    const seenKind = new Set();
+    const newest = log.slice().reverse().filter(m => {
+      const k = LOG_KIND.find(([, re]) => re.test(m.text));
+      if (!k) return true;
+      if (seenKind.has(k[0])) return false;
+      seenKind.add(k[0]);
+      return true;
+    });
+    for (let i = 0; i < newest.length; i++) {
+      const m = newest[i];
+      const lines = wrapText(m.text, r - l - indent);
+      list.text(l, ry, stamp(m.time));
+      lines.forEach((t, j) => list.text(l + indent, ry + j, t));
+      if (i === 0) {
+        firstHeight = lines.length + LOG_GAP / 8; key = String(m.id);
+        if (blink) list.put(Math.min(r, l + indent + lines[lines.length - 1].length + 1), ry + lines.length - 1, GSC.CHARS["▼"], 0);
+      }
+      entries.push({ row: ry, rows: lines.length });
+      const endPx = (ry - top + lines.length) * 8 + i * LOG_GAP;
+      if (endPx <= roomPx) fullPx = endPx;
+      ry += lines.length;
+      if (endPx > roomPx) break;    // one past the bottom: the one sliding out
+    }
+    lists.push({ screen: list, x0: l, x1: r + 1, y0: top - 1, y1: top + fullPx / 8, step: firstHeight, key, ms: 750,
+      entries, entryGap: LOG_GAP });
+  }
+  const LOG_GAP = 3;     // Game Boy pixels between log entries (a blank row was 8)
+  // The routine kinds: only the newest of each shows (the calls - Joey's
+  // rematches, the call countdown, no signal; where it hunts).
+  const LOG_KIND = [
+    // (not the day's recap - it says "$768 from Joey" too, and vanished at
+    // Joey's next line: found in the code review, 2026-11-11)
+    ["calls", /^(?!.*\brecap\b).*joey|^expecting a call|^no phone signal/i],
+    ["hunt", /^hunting on |^staying in .* for the next rotation/i],
+  ];
+  // ----- the encounter panel, three designs -----
+  // Every design: the Pokemon in front of you on the left - its picture
+  // (animated), name, DVs and held item - and the ones before it on the
+  // right, newest first. They differ in how the ones before it look:
+  //   encounters       party icons, two lines each (name / DVs)
+  //   encounters_log   one plain line each (name and DVs), many of them
+  //   encounters_pics  their own small animated pictures, a few tall rows
+  const cur = () => state.current || (state.encounters || [])[0];
+  // Which encounter that is: a new one plays its animation again, even the same species.
+  const curId = () => { const e = (state.encounters || [])[0]; return e && e.id != null ? e.id : ""; };
+  const statLines = c => [
+    "ATK" + pad(c.atk, 3) + " DEF" + pad(c.def, 3),
+    "SPE" + pad(c.spe, 3) + " SPC" + pad(c.spc, 3)];
+
+  // The current one, its text beside the picture (needs ~21 tiles).
+  function nowBeside(l, r, top, rows) {
+    const c = cur();
+    if (!c) { s.text(l, top + 1, "WAITING FOR AN ENCOUNTER".slice(0, r - l)); return; }
+    pictures.push({ slot: "cur:" + curId(), play: "once", species: c.species, shiny: !!c.shiny, x: l, y: top, half: true });
+    const tx = l + 8, w = Math.max(0, r - tx);
+    // Like the game's stats screen: one stat a line.
+    [up(name(c.species)), "ATK" + pad(c.atk, 4), "DEF" + pad(c.def, 4), "SPE" + pad(c.spe, 4), "SPC" + pad(c.spc, 4),
+     c.item ? up(c.item) : "NO ITEM", c.shiny ? "SHINY!" : (c.streak > 1 ? `${c.streak} IN A ROW` : "")]
+      .forEach((t, i) => { if (i < rows) s.text(tx, top + i, t.slice(0, w)); });
+  }
+  // The current one, its text under the picture (needs 11 rows, 13 tiles).
+  function nowStacked(l, r, top, rows) {
+    const c = cur();
+    if (!c) { s.text(l, top + 1, "WAITING"); return; }
+    pictures.push({ slot: "cur:" + curId(), play: "once", species: c.species, shiny: !!c.shiny, x: l + Math.max(0, Math.floor((r - l - 7) / 2)), y: top, half: true });
+    [up(name(c.species)) + (c.shiny ? " SHINY" : ""), ...statLines(c), c.item ? up(c.item) : "NO ITEM"]
+      .forEach((t, i) => { if (7 + i < rows) s.text(l, top + 7 + i, t.slice(0, r - l)); });
+  }
+  // "x7": the same species 3 times or more in a row, at the area's right
+  // edge (right, in tiles) by the picture's top (row). A new count pops.
+  function streakBadge(c, right, row) {
+    const st = state.streak;
+    if (!st || !(st.n >= 3) || st.species !== c.species) return;
+    const key = st.species + ":" + st.n;
+    if (key !== streakPump.key) streakPump = { key, at: performance.now() };
+    badges.push({ text: "x" + st.n, right, row });
+  }
+  const divider = (col, top, bottom) => { for (let row = top; row <= bottom; row++) s.put(col, row, GSC.CHARS["│"], 0); };
+  const previous = n => (state.encounters || []).slice(1, 1 + n);
+
+  // A: party icons, two lines each.
+  function encounters(x, y, w, h) {
+    const l = x + 2, r = x + w - 2, top = y + 1, rows = h - 3;
+    const split = Math.min(r - 15, l + 19);
+    nowBeside(l, split - 1, top, rows);
+    divider(split, top, top + rows - 1);
+    const n = Math.min(6, Math.floor(rows / 2));
+    previous(n).forEach((m, i) => {
+      const ry = top + i * 2;
+      icons.push([m.species, split + 2, ry]);
+      s.text(split + 5, ry, (up(name(m.species)) + (m.shiny ? " SHINY" : "")).slice(0, r - split - 5));
+      // The held item only where it fits whole after the DVs.
+      const withItem = dvs(m) + (m.item ? "  " + up(m.item) : "");
+      s.text(split + 5, ry + 1, withItem.length <= r - split - 5 ? withItem : dvs(m));
+    });
+  }
+
+  // B: one line each - the most at once.
+  function encountersLog(x, y, w, h) {
+    const l = x + 2, r = x + w - 2, top = y + 1, rows = h - 3;
+    const split = l + 14;
+    nowStacked(l, split - 1, top, rows);
+    divider(split, top, top + rows - 1);
+    previous(rows).forEach((m, i) => {
+      const d = dvs(m);
+      s.text(split + 2, top + i, up(name(m.species)).slice(0, Math.max(1, r - split - 3 - d.length)));
+      s.text(r - d.length, top + i, d);
+    });
+  }
+
+  // C: the current one on the left - its stats at the bottom, its picture
+  // just above them - and the ones before it on the right, a row each with
+  // its own small picture snug against its text. A new encounter slides
+  // the rows down one: the newest in at the top, the oldest out at the
+  // bottom (the rows are on their own layer for that - see lists).
+  // Its two parts are areas you can move and size in the editor (layouts.js
+  // AREAS): "current" and "list"; the list's row height is a setting too.
+  function encountersPics(x, y, w, h, p) {
+    centred(x + 2, w - 4, y + 1, "RECENT ENCOUNTERS");
+    const A = AC_LAYOUT.areaOf(p, "current", w, h), B = AC_LAYOUT.areaOf(p, "list", w, h);
+    // The current one: its stats at the area's bottom, its picture centred
+    // in the space above them.
+    const l = x + A.x, top = y + A.y, bottom = y + A.y + A.h - 1, textW = A.w - 1;
+    const c = cur();
+    if (c) {
+      const lines = [up(name(c.species)) + (c.shiny ? " SHINY" : ""), ...statLines(c), c.item ? up(c.item) : "NO ITEM"];
+      const ly = bottom - lines.length + 1;
+      lines.forEach((t, i) => s.text(l, ly + i, t.slice(0, textW)));
+      // At the panels' own pixel size (crisp; 0.75 of the old 3x would make
+      // uneven pixels), measured from what the picture actually covers: in
+      // the middle of the area, between its top and the stats.
+      const areaTop = top * T + 4 * SCALE, areaBottom = ly * T;
+      pictures.push({ slot: "cur:" + curId(), play: "once", species: c.species, shiny: !!c.shiny, k: SCALE,
+        align: { cx: (l + (A.w - 1) / 2) * T, cy: (areaTop + areaBottom) / 2 } });
+      streakBadge(c, l + A.w, top + 1);
+    } else {
+      s.text(l, top + 1, "WAITING");
+    }
+    // The ones before it: a row each, step tiles apart - from 4 up three
+    // lines (name, DVs, item), below that two (name, then the DVs with the
+    // item after them where it fits) - from a row under the area's top (the
+    // top picture can reach up into it).
+    const bx = x + B.x, br = x + B.x + B.w - 1, listTop = y + B.y + 1, listBottom = y + B.y + B.h - 1;
+    const step = AC_LAYOUT.optOf(p, "rowStep"), n = Math.max(0, Math.floor((listBottom - listTop + 1) / step));
+    const list = new gsc.Screen(W, H, null);
+    const tx = bx + 5;                          // the text column; the pictures end just left of it
+    const rowsOf = (state.encounters || []).slice(1, 2 + n);   // one more than fits: the one sliding out
+    rowsOf.forEach((m, i) => {
+      const ry = listTop + i * step;
+      // Two lines: the held item after the DVs where it fits, else after the
+      // name, else left out (a narrow list area).
+      const nm = up(name(m.species)) + (m.shiny ? " SHINY" : ""), room = br - tx;
+      const item = m.item ? " " + up(m.item) : "";
+      const lines = step >= 4
+        ? [nm, dvs(m)].concat(m.item ? [up(m.item)] : [])
+        : (dvs(m) + item).length <= room ? [nm, dvs(m) + item]
+        : (nm + item).length <= room ? [nm + item, dvs(m)] : [nm, dvs(m)];
+      lines.forEach((t, j) => list.text(tx, ry + j, t.slice(0, Math.max(0, br - tx))));
+      // Fitted to its row: at most its text's lines and a quarter tile above
+      // and below (a big Pokemon is drawn smaller, a small one as it is).
+      pictures.push({ slot: "enc" + (m.id != null ? m.id : i + ":" + m.species), species: m.species, shiny: !!m.shiny,
+        small: true, list: lists.length, fitH: Math.min(step, lines.length + 0.5),
+        align: { right: tx * T - 3 * SCALE, cy: ry * T + 4 * SCALE + lines.length * T / 2 } });
+    });
+    // Visible from the area's top to half a row past the last entry's text
+    // (its picture reaches a little below it) - so the one waiting below
+    // doesn't peek in before it slides.
+    lists.push({ screen: list, x0: bx, x1: br + 1, y0: listTop - 1, y1: listTop + n * step - 1, below: 0.5, step,
+      key: rowsOf.length ? String(rowsOf[0].id != null ? rowsOf[0].id : JSON.stringify(rowsOf[0])) : null });
+  }
+  // Older single-part modules, kept for layouts that use them.
+  function nowPanel(x, y, w, h) { nowStacked(x + 2, x + w - 2, y + 1, h - 3); }
+  function before(x, y, w, h) {
+    const l = x + 2, r = x + w - 2, top = y + 1, rows = h - 3;
+    previous(Math.min(6, Math.floor(rows / 2))).forEach((m, i) => {
+      const ry = top + i * 2;
+      icons.push([m.species, l, ry]);
+      s.text(l + 3, ry, up(name(m.species)).slice(0, r - l - 3));
+      s.text(l + 3, ry + 1, dvs(m).slice(0, r - l - 3));
+    });
+  }
+  // What lives here right now: the time of day it is (it switches with
+  // it), or the water while surfing. Two columns - the left one fills
+  // first - each Pokemon its party icon, name and odds. ▶ marks the targets.
+  // opts.oneCol: one column, the whole width (the info bar's card).
+  function wild(x, y, w, h, opts = {}) {
+    const l = x + 2, r = x + w - 2;
+    const here = state.here || {};
+    const tod = here.now || state.time_of_day;
+    const surf = here.kind === "surf", fish = here.kind === "fish", tree = here.kind === "tree";
+    const where = up(state.location || "HERE");
+    const when = tod ? " " + (TOD_WORD[tod] || tod) : "";
+    // What the bot is doing names the table: the rod while fishing, the tree
+    // while headbutting (a rare one says so), the water while surfing.
+    let heading = fish ? `${here.rod || "FISHING"}: ${where}${when}`
+      : tree ? `${here.tree === "RARE" ? "RARE TREE" : "HEADBUTT"}: ${where}`
+      : surf ? `ENCOUNTERS: ${where} WATER` : `ENCOUNTERS: ${where}${when}`;
+    // (too long for a narrow panel: without "ENCOUNTERS:", then cut)
+    if (heading.length > r - l) heading = heading.replace(/^ENCOUNTERS: /, "");
+    centred(l, r - l, y + 1, heading.slice(0, r - l));
+    // The list for the time of day it is now (switches with the clock and
+    // the colours), else whatever the bot marked as current. Trees don't
+    // change with the clock: just their list.
+    const byTime = here[{ MORN: "morn", DAY: "day", NITE: "nite" }[tod]];
+    const list = (surf ? here.water : (byTime && byTime.length ? byTime : here.list)) || [];
+    const perCol = Math.max(1, Math.floor((h - 5) / 2));   // rows from y+3, two tiles each
+    const cols = opts.oneCol ? 1 : 2;
+    const colW = opts.oneCol ? r - l : Math.floor((r - l - 1) / 2);   // a tile between the columns
+    const shown = list.slice(0, perCol * cols);
+    const targets = new Set(state.targets || []);
+    const caught = new Set(Array.isArray(state.caught) ? state.caught : []);   // caught shiny already: icon in colour
+    shown.forEach((m, i) => {
+      const col = Math.floor(i / perCol), row = i % perCol;
+      const cx = l + col * (colW + 1), ry = y + 3 + row * 2, nx = cx + 3;
+      const odds = m.odds + "%";
+      const mark = targets.has(m.species) ? "▶" : "";
+      s.text(nx, ry, (mark + up(name(m.species))).slice(0, Math.max(1, cx + colW - nx - odds.length - 1)));
+      s.text(cx + colW - odds.length, ry, odds);
+      // The icon by what it covers: centred on the name's line, its right
+      // edge three pixels before the name.
+      icons.push([m.species, cx, ry, { right: nx * T - 3 * SCALE, cy: ry * T + 4 * SCALE + T / 2 }, caught.has(m.species)]);
+    });
+    if (state.here && !list.length) centred(l, r - l, y + 4, fish && !here.rod ? "NO ROD ON SELECT" : fish ? "NO FISH HERE" : tree ? "NO TREE POKEMON HERE" : "NOTHING LIVES HERE");
+    // More than fit (rare): the last place says how many more.
+    if (list.length > shown.length && shown.length) {
+      const cx = opts.oneCol ? l : l + colW + 1, ry = y + 3 + (perCol - 1) * 2;
+      s.text(cx + 3, ry, `AND ${list.length - shown.length + 1} MORE`.slice(0, colW - 3));
+    }
+  }
+
+  // ----- cards: panels that take turns (the user, 2026-11-10: the luck
+  // board and the most met with the encounter table, the shiny history
+  // with the recent shinies). Which of n shows now, each sec seconds.
+  const cardNow = (sec, n) => sec > 0 && n > 1 ? Math.floor(Date.now() / (sec * 1000)) % n : 0;
+  // A ranked board, like the wild table: the heading, then rows two tiles
+  // apart with icons, down the first column then the second. Each row:
+  // {species, wide, narrow} - the right-hand text for a wide column (24+
+  // tiles) or a narrow one. opts: oneCol, foot (a line at the bottom), empty.
+  function board(x, y, w, h, heading, rows, opts = {}) {
+    const l = x + 2, r = x + w - 2;
+    centred(l, r - l, y + 1, heading.slice(0, r - l));
+    const perCol = Math.max(1, Math.floor((h - 5 - (opts.foot ? 3 : 0)) / 2));   // (the foot: a row clear above it, one under it)
+    const cols = opts.oneCol ? 1 : 2;
+    const colW = cols === 1 ? r - l : Math.floor((r - l - 1) / 2);
+    const caught = new Set(Array.isArray(state.caught) ? state.caught : []);
+    rows.slice(0, perCol * cols).forEach((it, i) => {
+      const col = Math.floor(i / perCol), row = i % perCol;
+      const cx = l + col * (colW + 1), ry = y + 3 + row * 2, nx = cx + 3;
+      const right = String(colW >= 24 ? it.wide : it.narrow);
+      s.text(nx, ry, (it.species ? up(name(it.species)) : "EGG").slice(0, Math.max(1, cx + colW - nx - right.length - 1)));
+      s.text(cx + colW - right.length, ry, right);
+      if (it.species) icons.push([it.species, cx, ry, { right: nx * T - 3 * SCALE, cy: ry * T + 4 * SCALE + T / 2 }, it.coloured != null ? it.coloured : caught.has(it.species)]);
+    });
+    if (!rows.length) centred(l, r - l, y + 4, opts.empty || "NOTHING YET");
+    if (opts.foot && rows.length) centred(l, r - l, y + h - 3, opts.foot.slice(0, r - l));
+  }
+  // Most over the odds first: met / (8192 x (shinies + 1)) - "2.0X" is
+  // twice the odds met without a shiny (the user: "the most over odds first place").
+  function luckCard(x, y, w, h, opts = {}) {
+    const rows = (state.luck || []).map(m => ({ species: m.species,
+      narrow: m.x.toFixed(1) + "X",
+      wide: `${fmt(m.met)} ${m.x.toFixed(1)}X` }));   // (its shinies are in the X: per shiny + 1)
+    board(x, y, w, h, "MOST OVER THE ODDS", rows, opts);
+  }
+  // The most met, with their share of every encounter.
+  function mostCard(x, y, w, h, opts = {}) {
+    const rows = (state.most || []).map(m => ({ species: m.species, narrow: m.pct.toFixed(1) + "%", wide: `${fmt(m.met)}  ${m.pct.toFixed(1)}%` }));
+    board(x, y, w, h, "MOST MET" + (state.most_total ? " OF " + fmt(state.most_total) : ""), rows, opts);
+  }
+  // Every shiny, newest first, and how many encounters it took; under them
+  // the average, the luckiest and the unluckiest.
+  function historyCard(x, y, w, h, opts = {}) {
+    const hs = state.history_stats;
+    const rows = (state.history || []).map(m => ({ species: m.species, coloured: true, narrow: fmt(m.took),
+      wide: `${fmt(m.took)} ${((m.took || 0) / 8192).toFixed(1)}X` }));
+    board(x, y, w, h, "SHINY HISTORY" + (hs ? ` (${hs.count})` : ""), rows,
+      Object.assign({ empty: "NONE YET", foot: hs ? `AVG ${fmt(hs.avg)}  BEST ${fmt(hs.best)}  WORST ${fmt(hs.worst)}` : "" }, opts));
+  }
+  // The panels with cards: the editor's "Card turns" (seconds each, 0 off).
+  // A card takes its turn only once it has something to show (the user,
+  // 2026-11-10: "make sure they only show once they gathered some data") -
+  // until then the others share the time.
+  const has = a => Array.isArray(a) && a.length > 0;
+  const wildCards = () => [wild, ...(has(state.luck) ? [luckCard] : []), ...(has(state.most) ? [mostCard] : [])];
+  const cardSec = p => p ? AC_LAYOUT.optOf(p, "card") || 0 : 0;
+  function wildPanel(x, y, w, h, p) {
+    const cards = wildCards();
+    cards[cardNow(cardSec(p), cards.length)](x, y, w, h, {});
+  }
+  function shiniesPanel(x, y, w, h, p) {
+    if (has(state.history) && cardNow(cardSec(p), 2) === 1) historyCard(x, y, w, h);
+    else shinies(x, y, w, h, p);
+  }
+
+  // How long ago, in words: "1 DAY 3 HRS", "5 HRS 2 MIN", "40 MIN",
+  // "JUST NOW". Longer than fit (max letters) - "3 DAYS 18 HRS" - it
+  // keeps only the bigger unit: "3 DAYS".
+  function agoWords(t, fit = 11) {
+    if (!t) return "";
+    const s = Math.max(0, Math.floor(Date.now() / 1000) - t);
+    const d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60);
+    const unit = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+    let big, small;
+    if (d) { big = unit(d, "DAY", "DAYS"); small = h ? unit(h, "HR", "HRS") : ""; }
+    else if (h) { big = unit(h, "HR", "HRS"); small = m ? unit(m, "MIN", "MIN") : ""; }
+    else return m ? unit(m, "MIN", "MIN") : "JUST NOW";
+    const both = small ? big + " " + small : big;
+    return both.length <= fit ? both : big;
+  }
+  // Text centred in a width starting at column c0.
+  const centred = (c0, width, row, text) => {
+    const t = String(text).slice(0, width);
+    s.text(c0 + Math.floor((width - t.length) / 2), row, t);
+  };
+
+  // Recent shinies: the heading centred; under each picture, centred, its
+  // name, its DVs and how long ago. The row of them is centred in its area
+  // ("row" - movable and sizable in the editor), each slot tiles wide (a
+  // setting: narrower, more of them).
+  function shinies(x, y, w, h, p) {
+    centred(x + 2, w - 4, y + 1, "RECENT SHINIES");
+    const R = AC_LAYOUT.areaOf(p, "row", w, h);
+    const l = x + R.x, rw = R.w, top = y + R.y;
+    const slot = AC_LAYOUT.optOf(p, "slot"), n = Math.max(1, Math.floor(rw / slot));
+    const list = (state.recent_shinies || []).slice(0, n);
+    const x0 = l + Math.floor((rw - list.length * slot) / 2);
+    list.forEach((m, i) => {
+      const sx = x0 + i * slot;
+      pictures.push({ slot: "shiny" + i, species: m.species, shiny: true, play: "every", wait: 1500 + i * 7000, x: sx + Math.floor((slot - 7) / 2), y: top, half: true });
+      centred(sx, slot, top + 7, up(name(m.species)));
+      centred(sx, slot, top + 8, dvs(m));
+      centred(sx, slot, top + 9, agoWords(m.time));
+    });
+    if (!list.length) centred(l, rw, top + 2, "NONE YET");
+  }
+
+  // The info bar. Left: the weekday and time, where and what time of day;
+  // under them what the bot is working on (target, goal, next, the phone).
+  // Middle: the lifetime numbers. Narrow: all in one column.
+  const DAYTIME_WORD = { MORN: "MORNING", DAY: "DAY", NITE: "NIGHT" };
+  function info(x, y, w, h, p) {
+    const l = x + 2, r = x + w - 2, rows = h - 3;
+    const targets = (state.targets || []).map(id => up(name(id)));
+    // Label: value, every value starting on the same column (after the
+    // longest label).
+    const LABELS = ["TIME:", "LOCATION:", "DAYTIME:", "TARGET:", "NEXT ROTATION:"];
+    const at = Math.max(...LABELS.map(a => a.length)) + 1;
+    const room = (r - l >= 66 ? Math.max(l + 38, r - 27) - 1 - l : r - l) - at;
+    // The targets and the rotation get two rows each, the words wrapped onto
+    // the second (the user, 2026-11-08: both were cut short). Every target
+    // by name, in the hunt's order (this map's own first) - "AND N MORE" only when
+    // even two rows can't hold them all.
+    const wrap = (text, n) => {        // -> up to n lines, or null: doesn't fit
+      const lines = [""];
+      for (const word of text.split(" ")) {
+        const cur = lines[lines.length - 1], joined = cur ? cur + " " + word : word;
+        if (joined.length <= room) lines[lines.length - 1] = joined;
+        else if (lines.length < n && word.length <= room) lines.push(word);
+        else return null;
+      }
+      return lines;
+    };
+    let targetLines = ["ANY SHINY"];
+    if (targets.length) {
+      targetLines = null;
+      for (let k = targets.length; k >= 1 && !targetLines; k--) {
+        const more = targets.length - k;
+        targetLines = wrap(targets.slice(0, k).join(", ") + (more ? ` AND ${more} MORE` : ""), 2);
+      }
+      if (!targetLines) targetLines = [targets[0].slice(0, room)];
+    }
+    // (map names spaced here too - "Route36" -> "ROUTE 36" - whatever the
+    // bot sends; the launcher does it as well since 2026-11-08)
+    const spacedMaps = t => String(t).replace(/([a-z])([A-Z])/g, "$1 $2").replace(/([A-Za-z])(\d)/g, "$1 $2").replace(/(\d)([A-Z][a-z])/g, "$1 $2");
+    const nextText = up(spacedMaps(state.next || "-"));
+    const nextLines = wrap(nextText, 2) || [nextText.slice(0, room), nextText.slice(room, 2 * room)];
+    const labelled = [
+      ["TIME:", clockText() || "-"],
+      ["LOCATION:", up(state.location || "-")],
+      ["DAYTIME:", DAYTIME_WORD[state.time_of_day] || "-"],
+      ["TARGET:", targetLines[0]],
+      ["", targetLines[1]],
+      ["NEXT ROTATION:", nextLines[0]],
+      ["", nextLines[1]],
+    ];
+    const place = labelled.map(([a, b]) => b ? [a, b, at] : [a]);
+    // On the panel's last row, however tall it is.
+    const ph = state.phase;
+    const work = [
+      ["CURRENT PHASE SHINIES " + (ph && ph.total ? `${ph.caught}/${ph.total}` : "-")],
+    ];
+    const numbers = [
+      ["TOTAL ENCOUNTERS", fmt(state.total)],
+      ["TOTAL SHINIES", fmt(state.shinies)],
+      ["SINCE LAST", fmt(state.since_shiny)],
+      ["PER HOUR", state.per_hour ? fmt(state.per_hour) : "-"],
+      ["RUNTIME", runtimeText(state.runtime)],
+      ["MONEY FROM JOEY", "¥" + fmt(state.joey)],
+    ];
+    // A label, then its value: at a set column (at), or right-aligned.
+    // Onto screen sc: the top rows go on their own layer (spaced), the
+    // phase line onto the panel's.
+    const spaced = new gsc.Screen(W, H, null);
+    let lastSpaced = 0;
+    const put = (sc0, c0, c1, row, [a, b, at]) => {
+      if (row > rows || c1 <= c0) return;
+      if (sc0 === spaced) lastSpaced = Math.max(lastSpaced, row);
+      sc0.text(c0, y + row, (a || "").slice(0, c1 - c0));
+      if (!b) return;
+      if (at) sc0.text(c0 + at, y + row, b.slice(0, Math.max(0, c1 - c0 - at)));
+      else sc0.text(c1 - b.length, y + row, b);
+    };
+    const workTop = rows - work.length + 1;
+    if (r - l >= 66) {
+      // The numbers against the panel's right edge, 27 tiles wide.
+      const midEnd = r, mid = Math.max(l + 38, r - 27);
+      place.forEach((it, i) => put(spaced, l, mid - 1, 1 + i, it));
+      // (the numbers take turns with the wild table, the luck board and the
+      // most met, like cards: the editor's "Card turns" - seconds each, 0 off;
+      // only the cards with something to show)
+      const cards = wildCards();
+      const k = cardNow(cardSec(p), 1 + cards.length);
+      if (k > 0) cards[k - 1](mid - 2, y, midEnd - mid + 4, h, { oneCol: true });
+      else numbers.forEach((it, i) => put(spaced, mid, midEnd, 1 + i, it));
+      work.forEach((it, i) => put(s, l, mid - 2, workTop + i, it));
+    } else {
+      [...place, [""], ...numbers].forEach((it, i) => put(spaced, l, r, 1 + i, it));
+      work.forEach((it, i) => put(s, l, r, workTop + i, it));
+    }
+    // The top rows a little apart: INFO_GAP Game Boy pixels between rows
+    // (the smallest there is: 1).
+    if (lastSpaced) lists.push({ screen: spaced, x0: l, x1: r + 1, y0: y + 1, y1: y + lastSpaced + 1, gap: INFO_GAP, key: null });
+  }
+  const INFO_GAP = 1;
+
+  function title(x, y, w, h, p) {
+    s.text(x + 2, y + Math.max(1, Math.floor((h - 3) / 2)), up(p.text || "AUTOCRYSTAL").slice(0, Math.max(0, w - 4)));
+  }
+
+  const DRAW = { chat, encounters, encounters_log: encountersLog, encounters_pics: encountersPics, now: nowPanel, before, wild: wildPanel, shinies: shiniesPanel, info, title };
+
+  function layout() {
+    frames = new gsc.Screen(W, H, null);
+    s = new gsc.Screen(W, H, null);
+    panels = []; pictures = []; icons = []; lists = []; badges = [];
+    for (const p of LAYOUT.panels || []) {
+      const x = Math.round(p.x / T), y = Math.round(p.y / T);
+      const w = Math.max(5, Math.round(p.w / T)), h = Math.max(3, Math.round(p.h / T));
+      frames.panel(x, y, w, h);
+      panels.push([x, y, w, h]);
+      if (DRAW[p.type]) DRAW[p.type](x, y, w, h, p);
+    }
+    return [frames, s];
+  }
+
+  // ----- the pictures' animations -----
+  // The Pokemon's own animation from the game (the one it plays when it
+  // appears in battle). How often, by the picture's play:
+  //   "once"   the current encounter: plays when it appears, then holds still
+  //            (a new encounter plays again, even the same species)
+  //   "every"  recent shinies: again every ~30 s, each on its own clock
+  //            (wait: when it first plays after a (re)load, so they're spread)
+  //   (none)   the encounter rows: loop like a GIF, with a short still pause
+  const LOOP_PAUSE_MS = [900, 1500];       // still between loops: from, to
+  const EVERY_MS = [26000, 34000];         // "every": still between plays, from, to
+  const between = ([a, b]) => a + Math.random() * (b - a);
+  const anims = new Map();
+  const animKey = q => q.slot || (q.species + ":" + q.x + ":" + q.y);
+  if (params.has("debug")) window.acAnims = anims;   // for checking the timing from the console
+  function animate(q) {
+    const key = animKey(q);
+    const now = performance.now();
+    let st = anims.get(key);
+    if (!st || st.species !== q.species || st.shiny !== q.shiny || st.play !== q.play) {
+      const first = q.play === "every" ? now + (q.wait || 0) : now + Math.random() * 1200;
+      st = { species: q.species, shiny: q.shiny, play: q.play, seq: null, t0: now, next: first, done: false, data: null };
+      anims.set(key, st);
+      GSC.monAnims("gfx/", q.species).then(a => {
+        st.data = a;
+        if (a.intro.length && loadedOnce) { st.seq = a.intro; st.t0 = performance.now(); }   // a new arrival: right away
+      });
+    }
+    q.anim = st;
+  }
+  let loadedOnce = false;
+  setTimeout(() => { loadedOnce = true; }, 2000);   // the first pictures after a (re)load start staggered
+  function frameOf(q, t, count) {
+    const st = q.anim;
+    if (!st || !st.data) return 0;
+    if (!st.seq && !st.done && t >= st.next) {
+      st.seq = st.data.intro.length ? st.data.intro : st.data.idle;
+      st.t0 = t;
+    }
+    if (!st.seq || !st.seq.length) return 0;
+    let at = (t - st.t0) * 60 / 1000;   // game frames since it started
+    for (const [frame, dur] of st.seq) {
+      if (at < dur) return Math.min(frame, count - 1);
+      at -= dur;
+    }
+    st.seq = null;
+    if (st.play === "once") st.done = true;
+    st.next = t + between(st.play === "every" ? EVERY_MS : LOOP_PAUSE_MS);
+    return 0;
+  }
+  // ----- drawing -----
+  let frameLayer = null, contentLayer = null, pics = [], drawn = [], panelBoxes = [], drawnIcons = [], drawnScale = 2;
+  let drawnLists = [];                 // [{canvas, x0, x1, y0, y1, step}] - tiles
+  const listKeys = [], slides = [];     // per list: its newest row's id, when it last slid
+  const SLIDE_MS = 380;
+  let rebuilding = false, rebuildAgain = false;
+  async function rebuild() {
+    if (rebuilding) { rebuildAgain = true; return; }
+    rebuilding = true;
+    do {
+      rebuildAgain = false;
+      const [f0, c0] = layout();
+      const shown = pictures.slice(), boxes = panels.slice(), ics = icons.slice(), sc = SCALE, ls = lists.slice(), bds = badges.slice();
+      const f = gsc.render(f0, 0), c = gsc.render(c0, 0);   // paper clear: the clouds show through
+      const lc = ls.map(L => gsc.render(L.screen, 0));
+      const p = await Promise.all(shown.map(q => GSC.monFrames("gfx/", q.species, q.shiny)));
+      shown.forEach(q => animate(q));
+      // Forget the animations of pictures no longer shown (rows that slid out).
+      const keep = new Set(shown.map(animKey));
+      for (const k of anims.keys()) if (!keep.has(k)) anims.delete(k);
+      // A list whose newest row changed slides (not on the first look at it).
+      ls.forEach((L, i) => {
+        // (A list that was empty - the chat before its first message - doesn't slide either.)
+        if (listKeys[i] != null && L.key !== null && listKeys[i] !== L.key) slides[i] = performance.now();
+        listKeys[i] = L.key;
+      });
+      frameLayer = f; contentLayer = c; pics = p; drawn = shown; panelBoxes = boxes; drawnIcons = ics; drawnScale = sc; drawnBadges = bds;
+      drawnLists = ls.map((L, i) => ({ canvas: lc[i], x0: L.x0, x1: L.x1, y0: L.y0, y1: L.y1, step: L.step, ms: L.ms || SLIDE_MS, gap: L.gap, below: L.below || 0, entries: L.entries, entryGap: L.entryGap }));
+    } while (rebuildAgain);
+    rebuilding = false;
+  }
+
+  // What a picture actually covers inside its 56x56 square (all frames
+  // together), so it can be lined up by what you see, not by the square.
+  function boundsOf(frames) {
+    if (frames.bounds) return frames.bounds;
+    let l = 56, t = 56, r = -1, b = -1;
+    for (const fr of frames) {
+      const d = fr.getContext("2d").getImageData(0, 0, 56, 56).data;
+      for (let y = 0; y < 56; y++) for (let x = 0; x < 56; x++) {
+        if (d[(y * 56 + x) * 4 + 3]) { if (x < l) l = x; if (x > r) r = x; if (y < t) t = y; if (y > b) b = y; }
+      }
+    }
+    frames.bounds = r < 0 ? { l: 0, t: 0, r: 55, b: 55 } : { l, t, r, b };
+    return frames.bounds;
+  }
+  // What a party icon covers in its 16x16 (both frames together).
+  function iconBounds(ic) {
+    if (ic.bounds) return ic.bounds;
+    const d = ic.getContext("2d").getImageData(0, 0, 16, 32).data;
+    let l = 16, t = 16, r = -1, b = -1;
+    for (let y = 0; y < 32; y++) for (let x = 0; x < 16; x++) {
+      if (!d[(y * 16 + x) * 4 + 3]) continue;
+      const yy = y % 16;
+      if (x < l) l = x; if (x > r) r = x; if (yy < t) t = yy; if (yy > b) b = yy;
+    }
+    ic.bounds = r < 0 ? { l: 0, t: 0, r: 15, b: 15 } : { l, t, r, b };
+    return ic.bounds;
+  }
+  // Where a picture goes, in screen pixels: [x, y, pixel size].
+  function placeOf(q, frames, sc, tt, half) {
+    let k = q.small ? 1 : (q.k || sc);
+    if (!q.align) return [q.x * tt, q.y * tt + (q.half ? half : 0), k];
+    const b = boundsOf(frames), a = q.align;
+    // fitH (in tiles): a picture taller than that, as you see it, is drawn
+    // smaller to fit (nearest pixel) - a big one in a short list row.
+    if (q.fitH && (b.b - b.t + 1) * k > q.fitH * tt) k = q.fitH * tt / (b.b - b.t + 1);
+    const x = a.right != null ? a.right - (b.r + 1) * k : a.cx - (b.l + b.r + 1) * k / 2;
+    const y = a.bottom != null ? a.bottom - (b.b + 1) * k : a.cy - (b.t + b.b + 1) * k / 2;
+    return [Math.round(x), Math.round(y), k];
+  }
+  // How far a list is slid right now: from one row up, easing down to 0.
+  function slideOf(i, t, tt) {
+    const s0 = slides[i];
+    if (s0 === undefined || !drawnLists[i]) return 0;
+    const p = (t - s0) / drawnLists[i].ms;
+    if (p >= 1) return 0;
+    const ease = 1 - Math.pow(1 - p, 3);
+    return Math.round(-(1 - ease) * drawnLists[i].step * tt);
+  }
+
+  // Party icons (gfx/icons, two frames stacked) in the frame's greys,
+  // white clear - the party menu's icons. coloured: in the Pokemon's own
+  // two colours instead, from its picture (black stays; the game has no
+  // shiny icons) - for the ones already caught shiny.
+  const iconCache = new Map();
+  function icon(species, coloured) {
+    const file = ICONS[species - 1];
+    if (!file) return null;
+    const key = file + (coloured ? ":" + species + "s" : LAYOUT.girl ? "g" : "b");
+    if (!iconCache.has(key)) {
+      iconCache.set(key, null);
+      const img = new Image();
+      const colours = coloured ? GSC.monColors("gfx/", species) : Promise.resolve(null);
+      Promise.all([colours, new Promise((ok, bad) => { img.onload = ok; img.onerror = bad; })]).then(([sh]) => {
+        const pal = sh && sh.length >= 2 ? [PAL[0], sh[0], sh[1], PAL[3]] : PAL;
+        const c = document.createElement("canvas");
+        c.width = img.width; c.height = img.height;
+        const x = c.getContext("2d");
+        x.drawImage(img, 0, 0);
+        const d = x.getImageData(0, 0, c.width, c.height);
+        for (let i = 0; i < d.data.length; i += 4) {
+          const g = d.data[i];
+          const shade = d.data[i + 3] < 128 ? 0 : g > 200 ? 0 : g > 127 ? 1 : g > 42 ? 2 : 3;
+          if (shade === 0) { d.data[i + 3] = 0; continue; }
+          [d.data[i], d.data[i + 1], d.data[i + 2]] = pal[shade];
+        }
+        x.putImageData(d, 0, 0);
+        iconCache.set(key, c);
+      }).catch(() => {});   // no icon file: none drawn
+      img.src = "gfx/icon_" + file + ".png";
+    }
+    return iconCache.get(key);
+  }
+
+  // The band along the panels: clouds, meadow (grass) or water - a strip
+  // each, taking turns about every half an hour whatever the time of day,
+  // crossfading. A strip whose file isn't there yet just isn't in the turns.
+  // ?band=grass keeps one. Per strip:
+  //   top, rows, width - the part of the file used (all of it when not set)
+  //   k      - screen pixels per file pixel, per UI pixel size (the cloud
+  //            file is 4x: 1/4; the meadow is drawn 1:1 at 2x: 1/2)
+  //   at     - along the panels' "top" or "bottom"
+  //   drift  - how fast it slides along (1: the clouds' pace, 0: still)
+  //   tinted - light (on light paper) / dark (moonlit) tint, the strip's
+  //            colours only as a mask; else (natural) its own colours, the
+  //            `key` colour (its sky) cut out
+  const BANDS = [
+    { name: "clouds", file: "gfx/clouds.gif", rows: 107, k: 1 / 4, at: "top", drift: 1,
+      tinted: { light: [96, 160, 255], dark: [190, 205, 255] } },
+    // The meadow (forest_first_1_2_seconds_loop.gif; it repeats every 300
+    // pixels). The GIF is two layers sliding left - the bush line slowly, the
+    // grass in front about 4x faster - so they're taken from it once and slid
+    // here instead, a pixel at a time (played slowed down, the GIF's grass
+    // jumped 6 pixels at a time). Bush line: rows 232-271, the trees behind
+    // it (8,64,40) cut out so its bumpy tops are the top edge; grass: rows
+    // 300-358 (the flat dark rows between left out). 99 rows - about half a
+    // short panel, never more than `share` of one; its top `fade` rows fade
+    // out, smoothly, into the sky. speed: pixels a second.
+    // thin: the bushes' dark colour made see-through, the more the higher
+    // up - nothing of it at the top, all of it at the very bottom
+    // (power: how quickly it comes back) - so the grass blades stay and the
+    // dark band between them and the sky melts away.
+    // Its opacity: the editor's Meadow slider. seat: visitors sit in it.
+    { name: "grass", file: "gfx/grass.gif", width: 300, k: 1 / 2, at: "bottom", drift: 0, share: 0.55, fade: 44, seat: true,
+      thin: { color: [0, 32, 40], power: 1.5 },
+      layers: [
+        { rows: [232, 272], key: [8, 64, 40], speed: 12 },   // the bush line
+        { rows: [300, 359], speed: 47 },                     // the grass
+      ],
+      // Now and then a big tree behind the bush line: the GIF's two tree
+      // crowns (columns 290-485, top at row 100; 188-288, top at row 150 -
+      // rows 99-231, its sky cut out, the sides softened over `sideFade`
+      // columns), `count` of them at uneven gaps along every `every` pixels,
+      // sliding a little slower than the bushes (further back). Standing on
+      // the bushes, up to `share` of the panel; in a short panel lowered so
+      // the crown still shows `topPad` below its top. They melt away into
+      // the meadow: gone `sink` rows below its top, fading over `bottomFade`.
+      trees: { rows: [99, 232], crowns: [[290, 485], [188, 288]], key: [192, 96, 72], every: 1500, count: 3,
+        sideFade: 28, sink: 30, bottomFade: 50, topPad: 4, speed: 10, share: 0.85 } },
+    // The water (original_water_8sec_no_rock_checked.gif: Pokemon Gold's
+    // water, 48 frames, an 8 s shimmer - it doesn't slide, it sparkles; it
+    // repeats sideways seamlessly): rows 92-251, from just above the dithered
+    // top down to the deep water - the light ground under it (row 256 on,
+    // showing when the waves run high) left out, and the bottom `deep` rows
+    // fading into dark blue instead. In its own colours, 1:1. Its sky colour
+    // (and what's within keyTol of it - it's from a video) made see-through
+    // so the dithered top melts into the panel. Played by the clock at
+    // `speed` (the Water speed slider); at most `share` of a panel high
+    // (Water height), its top fading over `fade` rows (Water top fade).
+    // bubble: the GIF's rising bubble (a white ring - frame 25, around
+    // 45,127) let rise on its own now and then, anywhere along the water
+    // (see waterBubbles).
+    { name: "water", file: "gfx/water.gif", top: 92, rows: 160, width: 525, k: 1 / 2, at: "bottom", drift: 0,
+      // softKey: within this distance of the sky colour, a colour fades in
+      // gradually (the pale top showed as white speckle on night's dark paper).
+      share: 0.55, fade: 24, key: [192, 219, 240], keyTol: 10, softKey: 70,
+      deep: { color: [28, 84, 168], rows: 40 },
+      bubble: { frame: 25, at: [45, 127], size: 24, every: [2000, 5300], riseMs: 1900 } },
+  ];
+  for (const b of BANDS) {
+    b.img = new Image();
+    b.ok = false;
+    b.img.onload = () => { b.ok = true; if (!b.tinted) decodeFrames(b).catch(() => {}); };
+    b.img.src = b.file;
+  }
+  const BAND_EVERY = DEMO || params.has("band") ? [40000, 70000] : [25 * 60000, 35 * 60000];
+  const BAND_FADE_MS = 15000;
+  // The editor's "Meadow & water" sliders (layouts.js SCENERY) put onto the
+  // strips; what's built from them once (the meadow's thinned layers, the
+  // tree strip) made again only when one of those changes.
+  const meadowBand = BANDS.find(b => b.name === "grass"), waterBand = BANDS.find(b => b.name === "water");
+  for (const l of meadowBand.layers) l.baseSpeed = l.speed;
+  meadowBand.trees.baseSpeed = meadowBand.trees.speed;
+  let scenerySig = "";
+  function applyScenery() {
+    const s = key => AC_LAYOUT.sceneryOf(LAYOUT, key);
+    const m = s("meadowSpeed"), wsp = s("waterSpeed");
+    for (const l of meadowBand.layers) l.speed = l.baseSpeed * m;
+    meadowBand.trees.speed = meadowBand.trees.baseSpeed * m;
+    meadowBand.fade = s("meadowFade");
+    meadowBand.trees.bottomFade = s("treeFade");
+    waterBand.speed = wsp;
+    waterBand.share = s("waterHeight");
+    waterBand.fade = s("waterFade");
+    const sig = [s("meadowThin"), s("trees"), s("treeSoft")].join();
+    if (sig !== scenerySig) {
+      scenerySig = sig;
+      meadowBand.thin.power = s("meadowThin");
+      meadowBand.trees.count = s("trees");
+      meadowBand.trees.sideFade = s("treeSoft");
+      meadowBand.layerCanvases = null;
+      meadowBand.trees.strips = null;
+      meadowBand.trees.sprites = null;
+    }
+  }
+  const cutRows = b => b.cut ? b.cut[1] - b.cut[0] : 0;
+  const bandRows = b => b.layers ? b.layers.reduce((n, l) => n + l.rows[1] - l.rows[0], 0)
+    : (b.rows || b.img.height - (b.top || 0)) - cutRows(b);
+  const bandWidth = b => b.width || b.img.width;
+
+  // The panels' paper by the time of day in the game, four soft looks:
+  // morning (the game's 4:00-10:00) a light blush, day an almost-white,
+  // late afternoon (16:00-18:00) a soft blue, night (from 18:00) a dark
+  // blue. Game Boy Color colours (0-31 each). A change fades slowly, over
+  // PAPER_FADE_MS, eased at both ends - so it's barely noticed; the text
+  // turns white along with it where the paper gets dark.
+  // ?hour=7.5 pins a time of day (for trying it out).
+  const gbc = (r, g, b) => [r, g, b].map(v => (v << 3) | (v >> 2));
+  const LOOKS = {
+    MORN: gbc(31, 27, 26),   // a light blush
+    DAY: gbc(31, 31, 30),    // almost white
+    EVE: gbc(23, 26, 31),    // soft blue
+    NITE: gbc(3, 4, 11),     // dark blue
+  };
+  const PAPER_FADE_MS = 25000;
+  const TOD_HOUR = { MORN: 7, DAY: 13, NITE: 22 };   // no clock: a typical hour
+  function gameHour() {
+    if (params.has("hour")) return ((Number(params.get("hour")) % 24) + 24) % 24;
+    const c = state.clock;
+    if (c && c.hours != null) return c.hours + (c.minutes || 0) / 60;
+    return TOD_HOUR[(state.here && state.here.now) || state.time_of_day] || 13;
+  }
+  const lookAt = h => h >= 4 && h < 10 ? "MORN" : h >= 10 && h < 16 ? "DAY" : h >= 16 && h < 18 ? "EVE" : "NITE";
+  let paperShown = null, paperFrom = null, paperLook = null, paperSince = 0;
+  function paperNow(t) {
+    const look = lookAt(gameHour());
+    if (!paperShown) { paperShown = LOOKS[look].slice(); paperLook = look; }   // first look: as it is
+    if (look !== paperLook) { paperFrom = paperShown.slice(); paperLook = look; paperSince = t; }
+    if (paperFrom) {
+      const lin = Math.min(1, (t - paperSince) / PAPER_FADE_MS), e = lin * lin * (3 - 2 * lin);
+      paperShown = paperFrom.map((v, i) => v + (LOOKS[look][i] - v) * e);
+      if (lin >= 1) paperFrom = null;
+    }
+    return paperShown.map(Math.round);
+  }
+  // How white the text is (0 black - 1 white). Not tied to the paper's slow
+  // fade (that left it grey and hard to read for several seconds): it's
+  // black or white, and switches - in INK_SWITCH_MS - the moment the paper
+  // passes where both read equally well. A little either side of that
+  // point before it switches back, so it never flickers.
+  const INK_SWITCH_MS = 1000, INK_TURN = 0.46, INK_MARGIN = 0.02;
+  let inkTarget = null, inkShown = 0, inkFrom = 0, inkSince = 0;
+  function inkWhite(paper, t) {
+    const lum = (paper[0] * 0.3 + paper[1] * 0.59 + paper[2] * 0.11) / 255;
+    if (inkTarget === null) { inkTarget = inkShown = inkFrom = lum < INK_TURN ? 1 : 0; return inkShown; }   // first look: as it is
+    const want = lum < INK_TURN - INK_MARGIN ? 1 : lum > INK_TURN + INK_MARGIN ? 0 : inkTarget;
+    if (want !== inkTarget) { inkFrom = inkShown; inkTarget = want; inkSince = t; }
+    const p = Math.min(1, (t - inkSince) / INK_SWITCH_MS);
+    inkShown = inkFrom + (inkTarget - inkFrom) * p * p * (3 - 2 * p);
+    return inkShown;
+  }
+  // A white copy of a text layer (every pixel of it white, same shapes),
+  // drawn over the black one as the text turns white. Made once per layer.
+  const whiteCopies = new WeakMap();
+  function whiteOf(layer) {
+    let w = whiteCopies.get(layer);
+    if (!w) {
+      w = document.createElement("canvas");
+      w.width = layer.width; w.height = layer.height;
+      const x = w.getContext("2d");
+      x.drawImage(layer, 0, 0);
+      x.globalCompositeOperation = "source-in";
+      x.fillStyle = "#fff";
+      x.fillRect(0, 0, w.width, w.height);
+      whiteCopies.set(layer, w);
+    }
+    return w;
+  }
+  // A band in colours that show on any paper: the strip's white is the
+  // paper itself, its lighter and darker colours become half and full. Light
+  // paper: the band its tint over the paper, like the strip on white; dark
+  // paper: lighter than it, moonlit. The mask is read off the GIF a few
+  // times a second (it animates). Each band keeps its own canvases.
+  function bandMask(b, t) {
+    if (!b.mask) {
+      b.mask = document.createElement("canvas");
+      b.maskCtx = b.mask.getContext("2d", { willReadFrequently: true });
+      b.maskAt = -1e9;
+    }
+    const m = b.mask, mc = b.maskCtx, rows = bandRows(b), width = bandWidth(b);
+    if (t - b.maskAt < 120 && m.width) return m;
+    b.maskAt = t;
+    if (m.width !== width || m.height !== rows) { m.width = width; m.height = rows; }
+    mc.clearRect(0, 0, m.width, m.height);
+    mc.drawImage(b.img, 0, b.top || 0, width, rows, 0, 0, width, rows);
+    const img = mc.getImageData(0, 0, m.width, m.height), d = img.data;
+    for (let i = 0; i < d.length; i += 4) {
+      const dark = 255 - (d[i] * 0.3 + d[i + 1] * 0.59 + d[i + 2] * 0.11);
+      const seen = d[i + 3] > 127;
+      d[i] = d[i + 1] = d[i + 2] = 255;
+      d[i + 3] = !seen || dark < 8 ? 0 : dark < 35 ? 128 : 255;
+    }
+    mc.putImageData(img, 0, 0);
+    return m;
+  }
+  // A strip in its own colours, from one picture of its file: its part
+  // (top, rows, width - the `cut` rows left out), the key colour (and what's
+  // near it) made see-through. Into canvas c, or a new one.
+  function stripFrom(b, source, c) {
+    c = c || document.createElement("canvas");
+    const width = bandWidth(b), rows = bandRows(b), top = b.top || 0;
+    if (c.width !== width || c.height !== rows) { c.width = width; c.height = rows; }
+    const x = c.getContext("2d", { willReadFrequently: true });
+    x.clearRect(0, 0, width, rows);
+    if (b.cut) {
+      const above = b.cut[0] - top, below = rows - above;
+      x.drawImage(source, 0, top, width, above, 0, 0, width, above);
+      x.drawImage(source, 0, b.cut[1], width, below, 0, above, width, below);
+    } else {
+      x.drawImage(source, 0, top, width, rows, 0, 0, width, rows);
+    }
+    if (b.key) {
+      const img = x.getImageData(0, 0, width, rows), d = img.data, [kr, kg, kb] = b.key;
+      for (let i = 0; i < d.length; i += 4) {
+        const dist = Math.abs(d[i] - kr) + Math.abs(d[i + 1] - kg) + Math.abs(d[i + 2] - kb);
+        if (dist < (b.keyTol || 30)) d[i + 3] = 0;
+        // softKey: colours near the key only partly there, the nearer the
+        // fainter - pale, noisy near-sky pixels melt away instead of
+        // showing as white speckle on dark paper.
+        else if (b.softKey && dist < b.softKey) d[i + 3] = Math.round(d[i + 3] * (dist - (b.keyTol || 30)) / (b.softKey - (b.keyTol || 30)));
+      }
+      x.putImageData(img, 0, 0);
+    }
+    if (b.deep) {   // the bottom fading into one deep colour
+      const h = Math.min(rows, b.deep.rows), [dr, dg, db] = b.deep.color;
+      const g = x.createLinearGradient(0, rows - h, 0, rows);
+      g.addColorStop(0, `rgba(${dr},${dg},${db},0)`);
+      g.addColorStop(1, `rgba(${dr},${dg},${db},1)`);
+      x.fillStyle = g;
+      x.fillRect(0, rows - h, width, h);
+    }
+    return c;
+  }
+  // The bubble: its square of the picture, only its near-white ring kept.
+  function bubbleFrom(bub, source) {
+    const s = bub.size, c = document.createElement("canvas");
+    c.width = c.height = s;
+    const x = c.getContext("2d", { willReadFrequently: true });
+    x.drawImage(source, bub.at[0] - s / 2, bub.at[1] - s / 2, s, s, 0, 0, s, s);
+    const img = x.getImageData(0, 0, s, s), d = img.data;
+    for (let i = 0; i < d.length; i += 4) if (!(d[i] > 205 && d[i + 1] > 225 && d[i + 2] > 225)) d[i + 3] = 0;
+    x.putImageData(img, 0, 0);
+    return c;
+  }
+  // Bubbles rising now and then, per scene (panels side by side share theirs):
+  // each from near the bottom of the water up to its top, wobbling, fading
+  // out at the surface. Positions along the scene in screen pixels.
+  const bubbleState = new Map();
+  if (params.has("debug")) window.acBubbles = bubbleState;
+  function waterBubbles(b, scene, t) {
+    const B = b.bubble, speed = b.speed || 1;
+    let st = bubbleState.get(scene.key);
+    if (!st) { st = { list: [], next: t + between(B.every) / speed }; bubbleState.set(scene.key, st); }
+    if (t >= st.next) {
+      st.list.push({ x: scene.from + Math.random() * (scene.to - scene.from), t0: t, wob: Math.random() * 6.3 });
+      st.next = t + between(B.every) / speed;
+    }
+    st.list = st.list.filter(u => t - u.t0 < B.riseMs / speed);
+    return st.list;
+  }
+  // An animated strip's every picture, made once (the browser's own GIF
+  // decoder - so it moves even where a GIF on its own wouldn't, as in a
+  // hidden or background page): b.frames = [[canvas, starts at ms]], b.loopMs.
+  async function decodeFrames(b) {
+    if (b.layers || typeof ImageDecoder === "undefined" || !/\.gif$/i.test(b.file)) return;
+    const data = await (await fetch(b.file)).arrayBuffer();
+    const dec = new ImageDecoder({ data, type: "image/gif" });
+    await dec.tracks.ready;
+    const n = dec.tracks.selectedTrack.frameCount, frames = [];
+    let at = 0;
+    for (let i = 0; i < n; i++) {
+      const f = await dec.decode({ frameIndex: i });
+      frames.push([stripFrom(b, f.image), at]);
+      if (b.bubble && i === b.bubble.frame) b.bubbleImg = bubbleFrom(b.bubble, f.image);
+      at += Math.max(10, (f.image.duration || 100000) / 1000);   // microseconds
+      f.image.close();
+    }
+    b.loopMs = at;
+    b.frames = frames;
+  }
+  // One colour of a layered strip made see-through by row: on row y of the
+  // whole strip (all its layers stacked, `rows` high) it shows
+  // ((y + 0.5) / rows) ^ power strong. (By row only - smooth, not dithered: a
+  // dot pattern sliding along with the layer shimmered.)
+  function thinOut(canvases, thin, rows) {
+    const [cr, cg, cb] = thin.color;
+    let y0 = 0;
+    for (const c of canvases) {
+      const x = c.getContext("2d", { willReadFrequently: true });
+      const img = x.getImageData(0, 0, c.width, c.height), d = img.data;
+      for (let y = 0; y < c.height; y++) {
+        const keep = Math.pow((y0 + y + 0.5) / rows, thin.power || 1);
+        for (let px = 0; px < c.width; px++) {
+          const i = (y * c.width + px) * 4;
+          if (d[i + 3] && d[i] === cr && d[i + 1] === cg && d[i + 2] === cb) d[i + 3] = Math.round(d[i + 3] * keep);
+        }
+      }
+      x.putImageData(img, 0, 0);
+      y0 += c.height;
+    }
+  }
+  // A layered strip's layers, each its rows of the file (any picture of it
+  // will do - they only slide), the key colour made see-through. Made once.
+  function layerStrips(b) {
+    if (!b.layerCanvases) {
+      b.layerCanvases = b.layers.map(l => stripFrom({ width: bandWidth(b), top: l.rows[0], rows: l.rows[1] - l.rows[0], key: l.key }, b.img));
+      if (b.thin) thinOut(b.layerCanvases, b.thin, bandRows(b));
+    }
+    return b.layerCanvases;
+  }
+  function naturalBand(b, t) {
+    if (b.layers) return layerStrips(b)[0];   // (stands in for its size; drawn layer by layer)
+    if (b.frames && b.frames.length) {
+      const into = ((t - start) * (b.speed || 1)) % b.loopMs;
+      let pick = b.frames[0][0];
+      for (const [c, from] of b.frames) { if (from > into) break; pick = c; }
+      return pick;
+    }
+    // Not decoded (yet, or no decoder): the picture as the browser shows it.
+    if (!b.nat || t - (b.natAt || 0) >= 120) { b.nat = stripFrom(b, b.img, b.nat); b.natAt = t; }
+    return b.nat;
+  }
+  // A strip held to part of a panel's height (share): its bottom shownH
+  // screen pixels, repeated across the panel's inside (iw wide, starting
+  // offX), its top `fade` strip pixels fading out, from nothing at the very
+  // top to all of it. Canvases kept per size and reused.
+  const capped = new Map();
+  // A panel's trees strip: `every` pixels wide, its trees placed once - by
+  // the panel's own seed (from where it is), so every panel has its own
+  // trees and they don't all turn up at once. Each crown cut out of the file.
+  function treeStrip(b, seed0) {
+    const T = b.trees;
+    if (!T.strips) T.strips = new Map();
+    if (T.strips.has(seed0)) return T.strips.get(seed0);
+    const h = T.rows[1] - T.rows[0];
+    const sprites = T.sprites || (T.sprites = T.crowns.map(([x0, x1]) => {
+      const s = document.createElement("canvas");
+      s.width = x1 - x0; s.height = h;
+      const x = s.getContext("2d", { willReadFrequently: true });
+      x.drawImage(b.img, x0, T.rows[0], x1 - x0, h, 0, 0, x1 - x0, h);
+      const img = x.getImageData(0, 0, s.width, s.height), d = img.data, [kr, kg, kb] = T.key;
+      for (let i2 = 0; i2 < d.length; i2 += 4) if (d[i2] === kr && d[i2 + 1] === kg && d[i2 + 2] === kb) d[i2 + 3] = 0;
+      x.putImageData(img, 0, 0);
+      // Soft sides (below its crown the GIF's forest is one solid mass - cut
+      // out, a tree had straight edges): fading in over `sideFade` columns.
+      x.globalCompositeOperation = "destination-out";
+      for (const [gx0, gx1] of [[0, T.sideFade], [s.width, s.width - T.sideFade]]) {
+        const g = x.createLinearGradient(gx0, 0, gx1, 0);
+        g.addColorStop(0, "rgba(0,0,0,1)"); g.addColorStop(1, "rgba(0,0,0,0)");
+        x.fillStyle = g; x.fillRect(Math.min(gx0, gx1), 0, T.sideFade, h);
+      }
+      x.globalCompositeOperation = "source-over";
+      return s;
+    }));
+    const strip = document.createElement("canvas");
+    strip.width = T.every; strip.height = h;
+    const sx = strip.getContext("2d");
+    let seed = (seed0 % 2147483646) + 1;
+    const rand = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+    for (let k = 0; k < 5; k++) rand();   // (stir: nearby seeds start alike)
+    const gap = T.every / T.count;
+    for (let i = 0; i < T.count; i++) {
+      const s = sprites[Math.floor(rand() * sprites.length)];
+      const room = Math.max(0, gap - s.width);
+      sx.drawImage(s, Math.round(i * gap + rand() * room), 0);
+    }
+    T.strips.set(seed0, strip);
+    return strip;
+  }
+  // The trees behind the meadow, for a panel: H high (the meadow at its
+  // bottom shownH), sliding, cut at the top with a fade.
+  const treeCanvases = new Map();
+  function treesFor(b, iw, H, shownH, offX, sc, t, seed) {
+    const T = b.trees, kb = sc * b.k, strip = treeStrip(b, seed);
+    const key = iw + "x" + H;
+    let c = treeCanvases.get(key);
+    if (!c) { c = document.createElement("canvas"); c.width = iw; c.height = H; treeCanvases.set(key, c); }
+    const x = c.getContext("2d");
+    x.globalCompositeOperation = "source-over";
+    x.imageSmoothingEnabled = false;
+    x.clearRect(0, 0, iw, H);
+    const sw = strip.width * kb, sh = strip.height * kb;
+    // Standing on the bushes where there's room; in a short panel lowered
+    // so the crown still shows (`topPad` below the top), the rest behind
+    // the meadow.
+    const meadowTop = H - shownH;
+    const top = Math.max(T.topPad * kb, meadowTop + T.sink * kb - sh);
+    const slid = Math.floor((t - start) / 1000 * T.speed) * kb;
+    const from = (((offX - slid) % sw) + sw) % sw - sw;
+    for (let xx = from; xx < iw; xx += sw) {
+      if (xx + sw > 0) x.drawImage(strip, 0, 0, strip.width, strip.height, Math.round(xx), Math.round(top), sw, sh);
+    }
+    // Melting into the meadow: gone by `sink` below its top line, fading over
+    // `bottomFade` above that.
+    const y1 = meadowTop + T.sink * kb, y0 = y1 - T.bottomFade * kb;
+    const g = x.createLinearGradient(0, y0, 0, y1);
+    g.addColorStop(0, "rgba(0,0,0,0)"); g.addColorStop(1, "rgba(0,0,0,1)");
+    x.globalCompositeOperation = "destination-out";
+    x.fillStyle = g; x.fillRect(0, y0, iw, y1 - y0);
+    x.fillStyle = "#000"; x.fillRect(0, y1, iw, H - y1);
+    x.globalCompositeOperation = "source-over";
+    return c;
+  }
+  function cappedBand(b, img, bw, bh, shownH, iw, offX, sc, t, scene) {
+    const key = b.name + ":" + iw + "x" + shownH;
+    let c = capped.get(key);
+    if (!c) { c = document.createElement("canvas"); c.width = iw; c.height = shownH; capped.set(key, c); }
+    const x = c.getContext("2d");
+    x.globalCompositeOperation = "source-over";
+    x.imageSmoothingEnabled = false;
+    x.clearRect(0, 0, iw, shownH);
+    const kb = sc * b.k;
+    // Layer by layer (or the one picture), each repeated across, sliding
+    // left at its own speed - whole pixels, so it stays sharp.
+    const parts = b.layers
+      ? layerStrips(b).map((s, i) => [b.tinted && b.tintNow ? tintedLayer(s, b.tintNow) : s, b.layers[i].speed])
+      : [[img, 0]];
+    let y = shownH - bh;
+    for (const [s, speed] of parts) {
+      const h = Math.round(s.height * kb);
+      const slid = Math.floor((t - start) / 1000 * speed) * kb;
+      const from = (((offX - slid) % bw) + bw) % bw - bw;
+      for (let xx = from; xx < iw; xx += bw) {
+        if (xx + bw > 0) x.drawImage(s, 0, 0, s.width, s.height, Math.round(xx), y, bw, h);
+      }
+      y += h;
+    }
+    if (b.bubbleImg && scene) {
+      // Rising bubbles: from just above the bottom to past the top (where
+      // the fade takes them), wobbling sideways a little, gone at the surface.
+      const B = b.bubble, s = b.bubbleImg, size = Math.round(s.width * kb), rise = B.riseMs / (b.speed || 1);
+      const yBottom = shownH - size - 6 * kb, yTop = -Math.round(size * 0.3);
+      for (const u of waterBubbles(b, scene, t)) {
+        const p = (t - u.t0) / rise;
+        const bx = Math.round(u.x - scene.ix + Math.sin(p * 6.3 + u.wob) * 6 * kb - size / 2);
+        if (bx + size < 0 || bx > iw) continue;
+        x.globalAlpha = p > 0.85 ? Math.max(0, (1 - p) / 0.15) : 1;
+        x.drawImage(s, bx, Math.round(yBottom + (yTop - yBottom) * p), size, size);
+      }
+      x.globalAlpha = 1;
+    }
+    if (b.fade) {
+      // The top fading out: a smooth top-to-bottom ramp (a dither fixed on
+      // the screen, with the meadow sliding under it, made it flicker).
+      const fh = Math.round(b.fade * kb), g = x.createLinearGradient(0, 0, 0, fh);
+      g.addColorStop(0, "rgba(0,0,0,1)");
+      g.addColorStop(1, "rgba(0,0,0,0)");
+      x.globalCompositeOperation = "destination-out";
+      x.fillStyle = g;
+      x.fillRect(0, 0, iw, fh);
+      x.globalCompositeOperation = "source-over";
+    }
+    return c;
+  }
+  // A tinted strip's colour on this paper.
+  function tintOf(b, paper) {
+    const lum = (paper[0] * 0.3 + paper[1] * 0.59 + paper[2] * 0.11) / 255;
+    const night = Math.min(1, Math.max(0, (0.6 - lum) / 0.35));
+    // (Stronger than the strip's own colours: the editor's Clouds slider thins them.)
+    const light = paper.map((v, i) => v * b.tinted.light[i] / 255);
+    const dark = paper.map((v, i) => v + (b.tinted.dark[i] - v) * 0.85);
+    return light.map((v, i) => Math.round(v + (dark[i] - v) * night));
+  }
+  // A layer in one colour (its shape kept), made again only when the colour changes.
+  function tintedLayer(s, colour) {
+    const key = colour.join();
+    if (!s.tinted || s.tintKey !== key) {
+      const c = s.tinted || document.createElement("canvas");
+      c.width = s.width; c.height = s.height;
+      const x = c.getContext("2d");
+      x.globalCompositeOperation = "source-over";
+      x.clearRect(0, 0, c.width, c.height);
+      x.drawImage(s, 0, 0);
+      x.globalCompositeOperation = "source-in";
+      x.fillStyle = rgb(colour);
+      x.fillRect(0, 0, c.width, c.height);
+      s.tinted = c; s.tintKey = key;
+    }
+    return s.tinted;
+  }
+  function tintedBand(b, paper, t) {
+    if (!b.tinted) return naturalBand(b, t);
+    if (b.layers) { b.tintNow = tintOf(b, paper); return layerStrips(b)[0]; }   // (tinted layer by layer as drawn)
+    const m = bandMask(b, t);
+    if (!b.band) { b.band = document.createElement("canvas"); b.bandCtx = b.band.getContext("2d"); }
+    const out = b.band, oc = b.bandCtx;
+    if (out.width !== m.width || out.height !== m.height) { out.width = m.width; out.height = m.height; }
+    const colour = tintOf(b, paper);
+    oc.globalCompositeOperation = "source-over";
+    oc.clearRect(0, 0, out.width, out.height);
+    oc.drawImage(m, 0, 0);
+    oc.globalCompositeOperation = "source-in";
+    oc.fillStyle = rgb(colour);
+    oc.fillRect(0, 0, out.width, out.height);
+    return out;
+  }
+  // Which band shows: its turn, and the one before while they crossfade.
+  let bandNow = null, bandBefore = null, bandSince = 0, bandNext = 0;
+  function bands(t) {
+    const ready = BANDS.filter(b => b.ok);
+    if (!ready.length) return [];
+    const pinned = params.get("band");
+    if (!bandNow || !bandNow.ok) {
+      bandNow = ready.find(b => b.name === pinned) || ready.find(b => b.name === "clouds") || ready[0];
+      bandBefore = null; bandNext = t + between(BAND_EVERY);
+    } else if (!pinned && t >= bandNext) {
+      const others = ready.filter(b => b !== bandNow);
+      if (others.length) { bandBefore = bandNow; bandNow = others[Math.floor(Math.random() * others.length)]; bandSince = t; }
+      bandNext = t + between(BAND_EVERY);
+    }
+    const lin = bandBefore ? Math.min(1, (t - bandSince) / BAND_FADE_MS) : 1;
+    if (lin >= 1) bandBefore = null;
+    const e = lin * lin * (3 - 2 * lin);
+    return bandBefore ? [[bandBefore, 1 - e], [bandNow, e]] : [[bandNow, 1]];
+  }
+  if (params.has("debug")) window.acBandList = BANDS;
+  if (params.has("debug")) window.acBands = () => ({ frames: BANDS.map(b => b.name + ":" + (b.frames ? b.frames.length + "/" + Math.round(b.loopMs) + "ms" : "-")), now: bandNow && bandNow.name, before: bandBefore && bandBefore.name, ready: BANDS.filter(b => b.ok).map(b => b.name), nextIn: Math.round(bandNext - performance.now()) });
+
+  // ----- now and then, in the background -----
+  // A VISITOR - a Pokemon of this time of day, its own animated picture -
+  // drifts through one panel's sky about once an hour: night ghosts and
+  // night birds, morning bugs and Phanpy, daytime birds. Taken in turn, each
+  // time of day's list shuffled, so the same one doesn't come twice in a
+  // row. A RAIN shower every few hours, for a few minutes, fading in and
+  // out: thin, falling straight down, barely there. Both behind the text,
+  // inside the panels - never over the game. ?event=visitor / ?event=rain
+  // (or "visitor,rain") shows them right away and every half a minute or
+  // so; the demo has them more often than live too.
+  const MIN = 60000;
+  const EVENTS = new Set((params.get("event") || "").replace("gastly", "visitor").split(",").filter(Boolean));
+  const VISIT_EVERY = EVENTS.has("visitor") ? [20000, 30000] : DEMO ? [40000, 70000] : [40 * MIN, 80 * MIN];
+  const VISIT_SPEED = 18;                       // Game Boy pixels a second (a panel 40 tiles wide: ~20 s)
+  const RAIN_EVERY = EVENTS.has("rain") ? [15000, 25000] : DEMO ? [120000, 200000] : [120 * MIN, 300 * MIN];
+  const RAIN_LASTS = EVENTS.has("rain") || DEMO ? [45000, 60000] : [2 * MIN, 4 * MIN];
+  const RAIN_FADE_MS = 20000;
+  // The UNOWN: rarer than the rain - for half a minute or so, Unown blink in
+  // and out here and there inside the panels, one or two at a time, faint
+  // (see drawUnown). ?event=unown: right away and about every half minute.
+  const UNOWN_EVERY = EVENTS.has("unown") ? [25000, 35000] : DEMO ? [180000, 300000] : [240 * MIN, 600 * MIN];
+  const UNOWN_LASTS = [30000, 45000];
+  // Who comes by: those picked (in the editor) for this time of day AND the
+  // band showing now (clouds, meadow, water) - layouts.js's list until
+  // you've picked. Late afternoon counts as day. Nobody picked for this
+  // pairing: nobody comes this time.
+  const bags = {};
+  function nextVisitor(tod, backdrop) {
+    const all = AC_LAYOUT.visitorsOf(LAYOUT)
+      .filter(e => (e.times || []).includes(tod) && (e.backdrops || []).includes(backdrop))
+      .map(e => e.species);
+    if (!all.length) return null;
+    const key = tod + "|" + backdrop + "|" + all.join(",");   // a changed list starts a new bag
+    let bag = bags[key];
+    if (!bag || !bag.length) {
+      const last = bag && bag.last;
+      bag = all.slice().sort(() => Math.random() - 0.5);
+      if (bag.length > 1 && bag[bag.length - 1] === last) bag.unshift(bag.pop());   // not the one just seen
+      bags[key] = bag;
+    }
+    const species = bag.pop();
+    bag.last = species;
+    return species;
+  }
+  let forcedVisitor = null;   // the editor's "send this one"
+  // Where a visitor flies: mostly through the lower panels with no Pokemon
+  // pictures in them (the info bar, the encounter table), so it's never
+  // taken for an encounter - now and then (VISIT_UPPER_CHANCE) through one
+  // of the others.
+  const VISIT_UPPER_CHANCE = 0.2;
+  // Their opacity: the layout's (the editor's Visitors slider), 0.8 if not set.
+  const visitAlpha = () => Math.min(1, Math.max(0, Number(LAYOUT.visitors != null ? LAYOUT.visitors : 0.8)));
+  // Their size, of the encounter pictures': the layout's (the editor's Size slider).
+  const visitSize = () => Math.min(1, Math.max(0.1, Number(LAYOUT.visitorSize != null ? LAYOUT.visitorSize : 0.45)));
+  const BOB_ROOM = 4;          // Game Boy pixels kept clear above and below its lane
+  function picturePoint(q, tt) {
+    if (q.align) return [(q.align.cx != null ? q.align.cx : q.align.right) / tt, q.align.cy / tt];
+    return [q.x + 1, q.y + 1];
+  }
+  // Panels side by side in one row (same top, same height, touching) make
+  // one strip a visitor crosses whole - hidden only where their frames meet.
+  function stripsOf(boxes) {
+    const sorted = boxes.slice().sort((a, b) => a[1] - b[1] || a[3] - b[3] || a[0] - b[0]);
+    const strips = [];
+    for (const b of sorted) {
+      const s = strips[strips.length - 1], last = s && s[s.length - 1];
+      if (last && last[1] === b[1] && last[3] === b[3] && Math.abs(b[0] - (last[0] + last[2])) <= 1) s.push(b);
+      else strips.push([b]);
+    }
+    return strips;
+  }
+  function visitorPanel() {
+    const tt = 8 * drawnScale;
+    const points = drawn.map(q => picturePoint(q, tt));
+    const hasPictures = ([x, y, w, h]) => points.some(([px, py]) => px >= x && px < x + w && py >= y && py < y + h);
+    const bottom = Math.max(0, ...panelBoxes.map(([, y, , h]) => y + h));
+    const lowerPlain = b => !hasPictures(b) && b[1] >= bottom / 2;
+    const strips = stripsOf(panelBoxes).filter(s => s.reduce((n, b) => n + b[2], 0) >= 14 && s[0][3] >= 6);
+    const main = strips.filter(s => s.every(lowerPlain)), rest = strips.filter(s => !s.every(lowerPlain));
+    const from = main.length && (!rest.length || Math.random() >= VISIT_UPPER_CHANCE) ? main : rest;
+    return from.length ? from[Math.floor(Math.random() * from.length)] : null;
+  }
+  let visitor = null, visitNext = null, rain = null, rainNext = null;
+  function events(t) {
+    if (visitNext === null) {
+      visitNext = t + (EVENTS.has("visitor") ? 1000 : between(VISIT_EVERY));
+      rainNext = t + (EVENTS.has("rain") ? 1000 : between(RAIN_EVERY));
+    }
+    if (!visitor && t >= visitNext) {
+      visitNext = t + between(VISIT_EVERY);
+      const boxes = visitorPanel();
+      const look = lookAt(gameHour());
+      const species = forcedVisitor || nextVisitor(look === "EVE" ? "DAY" : look, bandNow ? bandNow.name : "clouds");
+      forcedVisitor = null;
+      if (boxes && species) {
+        // The same speed whatever the strip's length: longer, longer.
+        const across = boxes.reduce((n, b) => n + b[2], 0) * 8 + 48;
+        const v = { species, since: t, boxes, ms: across / VISIT_SPEED * 1000, right: Math.random() < 0.5,
+          phase: Math.random() * 6.3, lane: Math.random(), frames: null, anim: null, seq: null, t0: 0, next: t };
+        // Over the meadow it doesn't fly: it sits in the grass and goes by
+        // with it, right to left at the grass's pace (see drawVisitor).
+        if (bandNow && bandNow.seat && bandNow.layers) {
+          const sc = drawnScale, kb = sc * bandNow.k, first = boxes[0], lastBox = boxes[boxes.length - 1];
+          const strip = (lastBox[0] + lastBox[2] - 1 - (first[0] + 1)) * 8 * sc;
+          const speed = bandNow.layers[bandNow.layers.length - 1].speed * kb;   // screen pixels a second
+          Object.assign(v, { ground: bandNow, right: false, ms: (strip + 56 * sc * visitSize()) / speed * 1000 + 500 });
+        }
+        GSC.monFrames("gfx/", species, false).then(f => { v.frames = f; }).catch(() => {});
+        GSC.monAnims("gfx/", species).then(a => { v.anim = a; }).catch(() => {});
+        visitor = v;
+      }
+    }
+    if (visitor && t - visitor.since > visitor.ms) visitor = null;
+    if (!rain && t >= rainNext) rain = { since: t, lasts: between(RAIN_LASTS) };
+    if (rain && t - rain.since > rain.lasts) { rain = null; rainNext = t + between(RAIN_EVERY); }
+    if (unownNext === null) unownNext = t + (EVENTS.has("unown") ? 1000 : between(UNOWN_EVERY));
+    if (!unown && t >= unownNext) { unown = { since: t, lasts: between(UNOWN_LASTS), pops: [], next: t }; loadUnown(); }
+    // Over once its time is up and the last one has blinked out.
+    if (unown && t - unown.since > unown.lasts && !unown.pops.length) { unown = null; unownNext = t + between(UNOWN_EVERY); }
+  }
+  let unown = null, unownNext = null;
+  if (params.has("debug")) {
+    window.acEvents = () => ({ visitor, visitNext, rain, rainNext, unown, unownNext, alpha: visitAlpha(), size: visitSize(), band: bandNow && bandNow.name, now: performance.now() });
+    window.acVisitorPanel = visitorPanel;
+  }
+  // How hard it rains, 0 - 1: eased in, steady, eased out.
+  function rainNow(t) {
+    if (!rain) return 0;
+    const a = t - rain.since, fade = Math.min(RAIN_FADE_MS, rain.lasts / 3);
+    const p = Math.max(0, Math.min(1, a / fade, (rain.lasts - a) / fade));
+    return p * p * (3 - 2 * p);
+  }
+  // The paper under rain: just a touch greyer and darker.
+  function rainyPaper(paper, r) {
+    if (r <= 0) return paper;
+    const grey = (paper[0] + paper[1] + paper[2]) / 3;
+    return paper.map(v => Math.round((v + (grey - v) * 0.1 * r) * (1 - 0.03 * r)));
+  }
+  // The drop: one of the straight speed lines of gfx/battle_anims/speed.png
+  // (its last tile, two lines down it - one is taken): a thin streak, 1x8,
+  // falling straight down. Its colour follows the paper like the clouds'.
+  const dropSheet = new Image();
+  dropSheet.src = "gfx/anim_speed.png";
+  const DROP_AT = [18, 16];            // the line's top pixel in the sheet
+  // (?rainalpha=1 in a preview: the drops at full strength, to see them.)
+  const DROP_W = 1, DROP_H = 8, RAIN_ALPHA = params.has("rainalpha") ? Number(params.get("rainalpha")) : 0.075;
+  // Where the rain lands (see drawRain): RAIN_LAND of the way into the
+  // meadow or water showing along the bottom; fading over the last
+  // RAIN_FADE of its fall.
+  const RAIN_LAND = 0.3, RAIN_FADE = 0.4;
+  const drop = document.createElement("canvas");
+  drop.width = DROP_W; drop.height = DROP_H;
+  const dropCtx = drop.getContext("2d");
+  let dropShape = null, dropKey = null;
+  function dropIn(colour) {
+    if (!dropSheet.complete || !dropSheet.width) return null;
+    if (!dropShape) {
+      dropShape = document.createElement("canvas");
+      dropShape.width = DROP_W; dropShape.height = DROP_H;
+      const x = dropShape.getContext("2d");
+      x.drawImage(dropSheet, DROP_AT[0], DROP_AT[1], DROP_W, DROP_H, 0, 0, DROP_W, DROP_H);
+      const d = x.getImageData(0, 0, DROP_W, DROP_H);
+      for (let i = 0; i < d.data.length; i += 4) {
+        const paperPixel = d.data[i] > 200;
+        d.data[i] = d.data[i + 1] = d.data[i + 2] = 255;
+        d.data[i + 3] = paperPixel ? 0 : 255;
+      }
+      x.putImageData(d, 0, 0);
+    }
+    const key = colour.join();
+    if (key !== dropKey) {
+      dropKey = key;
+      dropCtx.globalCompositeOperation = "source-over";
+      dropCtx.clearRect(0, 0, DROP_W, DROP_H);
+      dropCtx.drawImage(dropShape, 0, 0);
+      dropCtx.globalCompositeOperation = "source-in";
+      dropCtx.fillStyle = rgb(colour);
+      dropCtx.fillRect(0, 0, DROP_W, DROP_H);
+    }
+    return drop;
+  }
+  const rnd = n => { const s = Math.sin(n * 12.9898) * 43758.5453; return s - Math.floor(s); };
+  // Inside a panel's frame, in screen pixels and in Game Boy pixels.
+  const insideOf = ([x, y, w, h], tt) => ({ sx: (x + 1) * tt, sy: (y + 1) * tt, w: (w - 2) * 8, h: (h - 2) * 8 });
+  function drawRain(r, paper, t, sc, tt) {
+    const lum = (paper[0] * 0.3 + paper[1] * 0.59 + paper[2] * 0.11) / 255;
+    const night = Math.min(1, Math.max(0, (0.6 - lum) / 0.35));
+    const light = paper.map((v, i) => v * [110, 140, 200][i] / 255);
+    const dark = paper.map((v, i) => v + ([170, 190, 240][i] - v) * 0.7);
+    const d = dropIn(light.map((v, i) => Math.round(v + (dark[i] - v) * night)));
+    if (!d) return;
+    const fall = (t - start) / 1000 * 140;   // Game Boy pixels a second
+    // Where it lands: on the meadow or the water, a little way into it (the
+    // band showing along the bottom - RAIN_LAND of what shows of it); else
+    // the panel's bottom. Drops fade out over the last RAIN_FADE of the way
+    // there and stop - none fall on through.
+    const ground = bandNow && bandNow.at === "bottom" && bandNow.share ? bandNow : null;
+    for (const box of panelBoxes) {
+      const { sx, sy, w, h } = insideOf(box, tt);
+      if (w <= 0 || h <= 0) continue;
+      let land = h;   // Game Boy pixels from the top
+      if (ground) {
+        const shown = Math.min(bandRows(ground) * ground.k, Math.floor(h * ground.share));
+        land = Math.max(8, h - shown * (1 - RAIN_LAND));
+      }
+      const fadeFrom = land * (1 - RAIN_FADE);
+      ctx.save();
+      ctx.beginPath(); ctx.rect(sx, sy, w * sc, h * sc); ctx.clip();
+      // The same drops every frame, more of them as it gets heavier.
+      const n = Math.round(w * land / 500 * r);
+      const spanY = land + DROP_H;
+      for (let i = 0; i < n; i++) {
+        const seed = box[0] * 131 + box[1] * 17 + i;
+        const go = fall * (0.85 + 0.3 * rnd(seed + 0.5));
+        const fy = (rnd(seed) * spanY + go) % spanY - DROP_H;
+        const bottom = fy + DROP_H;
+        if (bottom > land) continue;
+        ctx.globalAlpha = RAIN_ALPHA * (bottom <= fadeFrom ? 1 : 1 - (bottom - fadeFrom) / (land - fadeFrom));
+        const fx = Math.floor(rnd(seed + 0.25) * w);
+        ctx.drawImage(d, sx + fx * sc, sy + Math.round(fy) * sc, DROP_W * sc, DROP_H * sc);
+      }
+      ctx.restore();
+    }
+    ctx.globalAlpha = 1;
+  }
+  // The Unown: cut from the two clips of Crystal's intro (gfx/unown_a.gif,
+  // unown_b.gif - Unown fading in and out one after another, white on
+  // black, 400x300: the Game Boy's pixels 2.5x). Each CLIP is one Unown
+  // blinking: [file, first frame, last frame, its box x0, y0, x1, y1 in the
+  // GIF, (its brightest frame, if not the brightest by count)]. The black
+  // made see-through (each pixel as bright as it is opaque), so they show on
+  // the light paper as on the dark.
+  const UNOWN_CLIPS = [
+    ["unown_a", 10, 17, 134, 113, 191, 162], ["unown_a", 18, 25, 279, 26, 317, 71],
+    ["unown_a", 26, 33, 32, 105, 81, 162], ["unown_a", 34, 40, 198, 244, 239, 285],
+    ["unown_a", 42, 45, 172, 28, 227, 83], ["unown_a", 46, 49, 292, 116, 349, 185],
+    ["unown_a", 50, 53, 50, 232, 113, 270], ["unown_a", 54, 57, 222, 169, 253, 203],
+    ["unown_b", 18, 32, 176, 0, 381, 169, 25],   // the one with the burst of light in it
+    ["unown_b", 34, 40, 59, 182, 141, 227],
+  ];
+  // The BURST: that one's purple ring of light, spreading out over three
+  // frames (unown_b 26-28) - cut out on its own (purple: red = blue, no
+  // green; the Unown's blue and white left out), centred on the Unown at
+  // UNOWN_RING_AT. Half of the others get it too (UNOWN_BURST_CHANCE).
+  const UNOWN_RING = { file: "unown_b", from: 26, to: 28, box: [179, 0, 379, 166] }, UNOWN_RING_AT = [279, 83];
+  const UNOWN_BURST_CHANCE = 0.5;
+  // Each holds at its brightest for UNOWN_HOLD ms (the GIF's blink is ~0.5 s
+  // - too quick to catch), then the burst, then it fades.
+  const UNOWN_HOLD = 500;
+  const UNOWN_GIF_K = 2.5;      // the GIF's pixels per Game Boy pixel
+  const UNOWN_AT_ONCE = 2, UNOWN_GAP = [700, 2200];   // ms between one starting and the next
+  // Their opacity: the layout's (the editor's Unown slider), 0.5 if not set.
+  const unownAlpha = () => Math.min(1, Math.max(0, Number(LAYOUT.unown != null ? LAYOUT.unown : 0.5)));
+  let unownClips = null, unownRing = null, unownLoading = null;
+  function loadUnown() {
+    if (unownClips || unownLoading || typeof ImageDecoder === "undefined") return;
+    unownLoading = (async () => {
+      const decoders = {};
+      // Frames from..to of a GIF, cut to a box, keyed: [{ canvas, ms, mass, cx, cy }]
+      // (mass: how much shows; cx, cy: its middle, in the GIF).
+      async function cut(file, from, to, [x0, y0, x1, y1], keep) {
+        if (!decoders[file]) {
+          const buf = await (await fetch("gfx/" + file + ".gif")).arrayBuffer();
+          decoders[file] = new ImageDecoder({ data: buf, type: "image/gif" });
+          await decoders[file].tracks.ready;
+        }
+        const w = x1 - x0, h = y1 - y0, out = [];
+        for (let i = from; i <= to; i++) {
+          const { image } = await decoders[file].decode({ frameIndex: i });
+          const c = document.createElement("canvas");
+          c.width = w; c.height = h;
+          const g = c.getContext("2d");
+          g.drawImage(image, x0, y0, w, h, 0, 0, w, h);
+          const ms = Math.max(40, (image.duration || 65000) / 1000);
+          image.close();
+          const d = g.getImageData(0, 0, w, h), p = d.data;
+          let mass = 0, sx = 0, sy = 0;
+          for (let k = 0; k < p.length; k += 4) {
+            const m = Math.max(p[k], p[k + 1], p[k + 2]);
+            // the black, the GIF's near-black noise, and what this cut leaves out
+            if (m < 20 || (keep && !keep(p[k], p[k + 1], p[k + 2]))) { p[k + 3] = 0; continue; }
+            p[k] = Math.round(p[k] * 255 / m); p[k + 1] = Math.round(p[k + 1] * 255 / m); p[k + 2] = Math.round(p[k + 2] * 255 / m);
+            p[k + 3] = m;
+            mass += m; sx += m * ((k / 4) % w); sy += m * Math.floor(k / 4 / w);
+          }
+          g.putImageData(d, 0, 0);
+          out.push({ canvas: c, ms, mass, cx: x0 + (mass ? sx / mass : w / 2), cy: y0 + (mass ? sy / mass : h / 2) });
+        }
+        return out;
+      }
+      const clips = [];
+      for (const [file, from, to, x0, y0, x1, y1, peakAt] of UNOWN_CLIPS) {
+        const f = await cut(file, from, to, [x0, y0, x1, y1]);
+        let peak = peakAt != null ? peakAt - from : 0;
+        if (peakAt == null) f.forEach((q, i) => { if (q.mass > f[peak].mass) peak = i; });
+        // Its frames in order, the brightest held; the burst as the hold ends.
+        const seq = [];
+        let burstAt = 0;
+        f.forEach((q, i) => {
+          seq.push([i, q.ms]);
+          if (i === peak) { seq.push([i, UNOWN_HOLD]); burstAt = seq.reduce((n, s) => n + s[1], 0); }
+        });
+        clips.push({ frames: f.map(q => q.canvas), seq, burstAt, total: seq.reduce((n, s) => n + s[1], 0),
+          x0, y0, w: x1 - x0, h: y1 - y0, cx: f[peak].cx, cy: f[peak].cy, ownBurst: peakAt != null });
+      }
+      const r = UNOWN_RING;
+      const rf = await cut(r.file, r.from, r.to, r.box, (R, G, B) => G < 40 && R > 12 && R >= B * 0.6);
+      unownRing = { frames: rf.map(q => q.canvas), ms: rf.map(q => q.ms), total: rf.reduce((n, q) => n + q.ms, 0),
+        x0: r.box[0], y0: r.box[1], w: r.box[2] - r.box[0], h: r.box[3] - r.box[1] };
+      for (const f in decoders) decoders[f].close();
+      unownClips = clips;
+    })().catch(() => { unownLoading = null; });
+  }
+  // Now and then a new one somewhere: a panel picked by its size, a spot in
+  // it where the whole of it - burst and all - fits and isn't on top of one
+  // still showing. Then each plays its frames as the GIF times them (the
+  // brightest held), bursts, and goes. Kept inside its panel's frame.
+  function drawUnown(t, sc, tt) {
+    if (!unown || !unownClips) return;
+    const k = sc / UNOWN_GIF_K, R = unownRing;
+    if (t - unown.since < unown.lasts && unown.pops.length < UNOWN_AT_ONCE && t >= unown.next) {
+      unown.next = t + between(UNOWN_GAP);
+      const recent = unown.pops.map(p => p.clip).concat(unown.last || []);
+      const choices = unownClips.map((c, i) => i).filter(i => !recent.includes(i));
+      const clip = choices[Math.floor(Math.random() * choices.length)], c = unownClips[clip];
+      const burst = !c.ownBurst && Math.random() < UNOWN_BURST_CHANCE;
+      // What it covers, from its box's top-left (screen pixels): its box, and the ring round its middle.
+      const ring = burst ? [c.cx - UNOWN_RING_AT[0] + R.x0 - c.x0, c.cy - UNOWN_RING_AT[1] + R.y0 - c.y0] : null;
+      const fx0 = Math.min(0, ring ? ring[0] : 0) * k, fy0 = Math.min(0, ring ? ring[1] : 0) * k;
+      const fx1 = Math.max(c.w, ring ? ring[0] + R.w : 0) * k, fy1 = Math.max(c.h, ring ? ring[1] + R.h : 0) * k;
+      const fw = fx1 - fx0, fh = fy1 - fy0;
+      const fits = panelBoxes.map(b => insideOf(b, tt)).filter(r => r.w * sc >= fw && r.h * sc >= fh);
+      const area = fits.reduce((n, r) => n + r.w * r.h, 0);
+      for (let tries = 0; tries < 8 && fits.length; tries++) {
+        let pick = Math.random() * area, r = fits[0];
+        for (const f of fits) { pick -= f.w * f.h; if (pick <= 0) { r = f; break; } }
+        const x = Math.round(r.sx - fx0 + Math.random() * (r.w * sc - fw)), y = Math.round(r.sy - fy0 + Math.random() * (r.h * sc - fh));
+        const box = [x + fx0, y + fy0, fw, fh];
+        const clear = unown.pops.every(p => box[0] + box[2] < p.box[0] || p.box[0] + p.box[2] < box[0] || box[1] + box[3] < p.box[1] || p.box[1] + p.box[3] < box[1]);
+        if (clear) {
+          unown.pops.push({ clip, since: t, x, y, box, ring, panel: [r.sx, r.sy, r.w * sc, r.h * sc] });
+          unown.last = [clip];
+          break;
+        }
+      }
+    }
+    ctx.save();
+    ctx.imageSmoothingEnabled = true;   // (the GIF is 2.5x, so never crisp at 2x anyway)
+    const alpha = unownAlpha();
+    unown.pops = unown.pops.filter(p => {
+      const c = unownClips[p.clip], a = t - p.since;
+      if (a >= c.total) return false;
+      ctx.save();
+      ctx.beginPath(); ctx.rect(...p.panel); ctx.clip();
+      // The ring, behind it: its three frames, as its hold ends.
+      const ra = a - c.burstAt;
+      if (p.ring && ra >= 0 && ra < R.total) {
+        let j = 0, left = ra;
+        while (j < R.ms.length - 1 && left >= R.ms[j]) left -= R.ms[j++];
+        ctx.globalAlpha = alpha;
+        ctx.drawImage(R.frames[j], p.x + p.ring[0] * k, p.y + p.ring[1] * k, R.w * k, R.h * k);
+      }
+      let s = 0, left = a;
+      while (s < c.seq.length - 1 && left >= c.seq[s][1]) left -= c.seq[s++][1];
+      // Fading over its last 150 ms, for the clips that are cut off mid-blink.
+      ctx.globalAlpha = alpha * Math.min(1, (c.total - a) / 150);
+      ctx.drawImage(c.frames[c.seq[s][0]], p.x, p.y, c.w * k, c.h * k);
+      ctx.restore();
+      return true;
+    });
+    ctx.restore();
+  }
+  // The visitor's picture frame now: its animation (the intro, as when it
+  // appears in battle - else the idle one) over and over, a short pause
+  // between.
+  function visitorFrame(v, t) {
+    if (!v.anim) return 0;
+    if (!v.seq && t >= v.next) { v.seq = v.anim.intro.length ? v.anim.intro : v.anim.idle; v.t0 = t; }
+    if (!v.seq || !v.seq.length) return 0;
+    let at = (t - v.t0) * 60 / 1000;
+    for (const [frame, dur] of v.seq) {
+      if (at < dur) return Math.min(frame, v.frames.length - 1);
+      at -= dur;
+    }
+    v.seq = null;
+    v.next = t + between([500, 1100]);
+    return 0;
+  }
+  function drawVisitor(t, sc, tt, paper) {
+    const v = visitor;
+    if (!v || !v.frames || !v.frames.length) return;
+    // The strip: from the first panel's inside left edge to the last one's
+    // inside right edge; it shows only inside the panels, not on the frames.
+    const insides = v.boxes.map(bx => insideOf(bx, tt));
+    const { sx, sy, h } = insides[0];
+    const last = insides[insides.length - 1];
+    const w = (last.sx - sx) / sc + last.w;
+    // Its size, a share of the encounter pictures' (the Size slider): drawn
+    // nearest pixel at a whole number of screen pixels, so it stays sharp.
+    const kv = sc * visitSize();
+    const size = Math.round(56 * kv);
+    const b = boundsOf(v.frames), seen = (b.r - b.l + 1) * kv, tall = (b.b - b.t + 1) * kv;
+    const iw = w * sc, ih = h * sc;
+    // Where what you see of it starts, in screen pixels from the panel's
+    // inside edge: from just off one side to just off the other.
+    let vx, top;
+    if (v.ground) {
+      // Sitting in the meadow: its feet down in the grass, carried along
+      // with it - the grass layer's own whole-pixel steps, counted the same
+      // way, so the two never drift apart.
+      const g = v.ground, kb = sc * g.k, speed = g.layers[g.layers.length - 1].speed;
+      const steps = Math.floor((t - start) / 1000 * speed) - Math.floor((v.since - start) / 1000 * speed);
+      vx = iw - steps * kb;
+      top = ih - tall - Math.round(AC_LAYOUT.sceneryOf(LAYOUT, "feet") * kb);
+    } else {
+      const p = (t - v.since) / v.ms;
+      vx = v.right ? -seen + p * (iw + seen) : iw - p * (iw + seen);
+      // Its height: its own lane anywhere from the top to the bottom of the
+      // panel (bobbing a little either way, never out of it).
+      const bob = Math.sin((t - v.since) / 900 + v.phase) * 3 * sc;
+      const room = Math.max(0, ih - tall - 2 * BOB_ROOM * sc);
+      top = BOB_ROOM * sc + v.lane * room + bob;
+    }
+    // The pictures face left: going right, it's flipped.
+    const x0 = Math.round(v.right ? vx - (55 - b.r) * kv : vx - b.l * kv);
+    const y0 = Math.round(top - b.t * kv);
+    const img = v.frames[visitorFrame(v, t)] || v.frames[0];
+    ctx.save();
+    ctx.beginPath();
+    for (const i of insides) ctx.rect(i.sx, i.sy, i.w * sc, i.h * sc);
+    ctx.clip();
+    ctx.imageSmoothingEnabled = false;
+    ctx.translate(sx + x0, sy + y0);
+    if (v.right) { ctx.translate(size, 0); ctx.scale(-1, 1); }
+    const put = (im, dx, dy) => ctx.drawImage(im, Math.round(dx * kv), Math.round(dy * kv), size, size);
+    // On dark paper its black outline would vanish: a faint moonlit one.
+    const lum = (paper[0] * 0.3 + paper[1] * 0.59 + paper[2] * 0.11) / 255;
+    const night = Math.min(1, Math.max(0, (0.6 - lum) / 0.35));
+    if (night > 0) {
+      ctx.globalAlpha = 0.25 * night * visitAlpha();
+      for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) put(whiteOf(img), dx, dy);
+    }
+    ctx.globalAlpha = visitAlpha();
+    put(img, 0, 0);
+    ctx.restore();
+  }
+
+  const start = performance.now();
+  let lastFrame = 0;
+  function frame(t) {
+    requestAnimationFrame(frame);
+    if (t - lastFrame < 33) return;   // ~30 fps is plenty
+    lastFrame = t;
+    if (!frameLayer) return;
+    const sc = drawnScale, tt = 8 * sc, half = 4 * sc;
+    const cloudAlpha = Math.min(1, Math.max(0, Number(LAYOUT.clouds != null ? LAYOUT.clouds : 0.35)));
+    ctx.imageSmoothingEnabled = false;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const drift = ((t - start) / 1000) * 5 * sc;   // 5 Game Boy pixels a second
+    applyScenery();
+    events(t);
+    const wet = rainNow(t);
+    const paper = rainyPaper(paperNow(t), wet);
+    // The band(s) showing, tinted for this paper (or in their own colours):
+    // [canvas, width, height, alpha, top or bottom, drift].
+    // (Each its own slider: Clouds, Meadow, Water.)
+    const clamp01 = v => Math.min(1, Math.max(0, v));
+    const alphaOf = { grass: clamp01(AC_LAYOUT.meadowOf(LAYOUT)), water: clamp01(AC_LAYOUT.waterOf(LAYOUT)) };
+    const shownBands = bands(t).map(([b, a]) => {
+      const kb = sc * b.k, alpha = (alphaOf[b.name] != null ? alphaOf[b.name] : cloudAlpha) * a;
+      return alpha > 0 ? [tintedBand(b, paper, t), Math.round(bandWidth(b) * kb), Math.round(bandRows(b) * kb), alpha, b.at, b.drift, b] : null;
+    }).filter(Boolean);
+    // Panels side by side in a row (same top and height, touching) are one
+    // scene: they share the first one's starting point and tree layout, and
+    // everything is laid out in screen positions - so a tree leaving one
+    // slides behind the frame and on into the next. Panels on their own
+    // (stacked in a column) each keep their own.
+    const sceneOf = new Map();
+    for (const s of stripsOf(panelBoxes)) {
+      const last = s[s.length - 1];
+      const scene = { first: s[0], key: s[0].join(), from: (s[0][0] + 1) * tt, to: (last[0] + last[2] - 1) * tt };
+      for (const box of s) sceneOf.set(box, scene);
+    }
+    for (const box of panelBoxes) {
+      const [x, y, w, h] = box, scene = sceneOf.get(box), [sxT, syT] = scene ? scene.first : box;
+      const px = x * tt, py = y * tt, pw = w * tt, ph = h * tt;
+      ctx.fillStyle = rgb(paper);
+      ctx.fillRect(px, py, pw, ph);
+      if (!shownBands.length) continue;
+      const ix = px + tt, iy = py + tt, iw = pw - 2 * tt, ih = ph - 2 * tt;
+      ctx.save();
+      ctx.beginPath(); ctx.rect(ix, iy, iw, ih); ctx.clip();
+      for (const [img, bw, bh, a, at, driftBy, b] of shownBands) {
+        ctx.globalAlpha = a;
+        // (Each scene its own starting point - from its left edge and its
+        // top, so panels stacked in a column don't line up either.)
+        const x0 = (((drift * driftBy + sxT * 37 + syT * 101) % bw) + bw) % bw - bw;
+        if (b.share) {
+          // No more than its share of the panel, the top fading out.
+          const shownH = Math.min(bh, Math.floor(ih * b.share));
+          if (b.trees) {   // the trees behind it, reaching higher
+            const T = b.trees, kb = sc * b.k;
+            const H = Math.floor(ih * T.share);
+            if (H > shownH) ctx.drawImage(treesFor(b, iw, H, shownH, x0 - ix, sc, t, sxT * 7919 + syT * 104729), ix, iy + ih - H);
+          }
+          ctx.drawImage(cappedBand(b, img, bw, bh, shownH, iw, x0 - ix, sc, t, scene && { key: scene.key, from: scene.from, to: scene.to, ix }), ix, iy + ih - shownH);
+          continue;
+        }
+        const by = at === "bottom" ? iy + ih - bh : iy;
+        for (let xx = x0; xx < ix + iw; xx += bw) {
+          if (xx + bw > ix) ctx.drawImage(img, 0, 0, img.width, img.height, Math.round(xx), by, bw, bh);
+        }
+      }
+      ctx.restore();
+    }
+    // Now and then: a visitor through the sky, rain in front of it.
+    drawVisitor(t, sc, tt, paper);
+    drawUnown(t, sc, tt);
+    if (wet > 0) drawRain(wet, paper, t, sc, tt);
+    ctx.drawImage(frameLayer, 0, 0, frameLayer.width * sc, frameLayer.height * sc);
+    // The text, black - and its white copy over it as far as the paper is dark.
+    const ink = inkWhite(paper, t);
+    const text = (layer, x, y) => {
+      ctx.drawImage(layer, x, y, layer.width * sc, layer.height * sc);
+      if (ink > 0.01) {
+        ctx.globalAlpha = ink;
+        ctx.drawImage(whiteOf(layer), x, y, layer.width * sc, layer.height * sc);
+        ctx.globalAlpha = 1;
+      }
+    };
+    text(contentLayer, 0, half);
+    // The sliding lists: their text and pictures, clipped to their area.
+    const clipOf = L => [L.x0 * tt, L.y0 * tt + half, (L.x1 - L.x0) * tt, (L.y1 - L.y0 + (L.below || 0)) * tt];
+    drawnLists.forEach((L, i) => {
+      if (L.gap) {
+        // Rows spaced out: each tile row of the layer drawn on its own, a
+        // little lower than the one above (gap Game Boy pixels more each).
+        for (let row = L.y0; row < L.y1; row++) {
+          const dy = (row - L.y0) * L.gap * sc;
+          ctx.save();
+          ctx.beginPath(); ctx.rect(L.x0 * tt, row * tt + half + dy, (L.x1 - L.x0) * tt, tt); ctx.clip();
+          text(L.canvas, 0, half + dy);
+          ctx.restore();
+        }
+        return;
+      }
+      const off = slideOf(i, t, tt);
+      ctx.save();
+      ctx.beginPath(); ctx.rect(...clipOf(L)); ctx.clip();
+      if (L.entries) {
+        // (the log: each entry on its own, entryGap Game Boy pixels lower
+        // than the one above - drawn touching on the layer)
+        L.entries.forEach((e, k) => {
+          const dy = k * L.entryGap * sc + off;
+          ctx.save();
+          ctx.beginPath(); ctx.rect(L.x0 * tt, e.row * tt + half + dy, (L.x1 - L.x0) * tt, e.rows * tt); ctx.clip();
+          text(L.canvas, 0, half + dy);
+          ctx.restore();
+        });
+      } else text(L.canvas, 0, half + off);
+      ctx.restore();
+    });
+    pics.forEach((pic, i) => {
+      const q = drawn[i];
+      if (!pic || !q) return;
+      const [px, py, k2] = placeOf(q, pic, sc, tt, half);
+      const img = pic[frameOf(q, t, pic.length)] || pic[0];
+      if (q.list != null && drawnLists[q.list]) {
+        ctx.save();
+        ctx.beginPath(); ctx.rect(...clipOf(drawnLists[q.list])); ctx.clip();
+        ctx.drawImage(img, px, py + slideOf(q.list, t, tt), 56 * k2, 56 * k2);
+        ctx.restore();
+      } else {
+        ctx.drawImage(img, px, py, 56 * k2, 56 * k2);
+      }
+    });
+    // Party icons bob between their two frames, like in the party menu.
+    const f = Math.floor((t - start) / 400) % 2;
+    for (const [species, x, y, align, coloured] of drawnIcons) {
+      const ic = icon(species, coloured);
+      if (!ic) continue;
+      let ix = x * tt, iy = y * tt + half;
+      if (align) {
+        const b = iconBounds(ic);
+        ix = Math.round(align.right - (b.r + 1) * sc);
+        iy = Math.round(align.cy - (b.t + b.b + 1) * sc / 2);
+      }
+      ctx.drawImage(ic, 0, f * 16, 16, 16, ix, iy, 16 * sc, 16 * sc);
+    }
+    // The streak badge: the game's letters at twice the size, popping to
+    // 1.6x and settling back when the count goes up.
+    for (const b of drawnBadges) {
+      const cv = badgeCanvas(b.text);
+      const p = Math.min(1, Math.max(0, (t - streakPump.at) / BADGE_POP_MS));
+      const k = sc * 2 * (1 + 0.6 * Math.pow(1 - p, 2));
+      const w = cv.width * k, h = cv.height * k;
+      const cx = b.right * tt - cv.width * sc, cy = b.row * tt + half + cv.height * sc;
+      const bx = Math.round(cx - w / 2), by = Math.round(cy - h / 2);
+      ctx.drawImage(cv, bx, by, w, h);
+      if (ink > 0.01) { ctx.globalAlpha = ink; ctx.drawImage(whiteOf(cv), bx, by, w, h); ctx.globalAlpha = 1; }
+    }
+    drawVote();   // a chat poll or bet: over the game, on top of everything
+  }
+  const BADGE_POP_MS = 380;
+  // The badge's letters on their own little tile layer (one per text, per
+  // look of the font).
+  function badgeCanvas(text) {
+    const cache = gsc.badgeCache || (gsc.badgeCache = new Map());
+    if (!cache.has(text)) {
+      const scr = new gsc.Screen(text.length, 1, null);
+      scr.text(0, 0, text);
+      cache.set(text, gsc.render(scr, 0));
+    }
+    return cache.get(text);
+  }
+
+  // ----- chat polls and bets (the user, 2026-11-11) -----
+  // Drawn over the game itself, in the game's own text boxes - the game
+  // doesn't change. First a Pokegear-call box at the top (the phone icon,
+  // "CHAT POLL!" / "CHAT BET!" and how to join) for ANNOUNCE_S, then the box
+  // where the game's text box and battle menu are: the question, the time
+  // left, the options with their shares. Where the Game Boy screen is:
+  // AC_LAYOUT.screenOf (the editor's "Game Boy screen" numbers).
+  // The vote (the relay's, from POST /vote - the editor's Test buttons post
+  // a sample; YouTube chat gets connected later):
+  //   { id (new for each), kind: "poll" | "bet", question, options (2-4; a
+  //     bet's are YES and NO unless given), votes (a count per option),
+  //     started, ends (Unix seconds), result (the winning option's index,
+  //     once known), pot (a bet's, optional), howto (the announcement's two
+  //     lines) and hint (the box's, optional), test (made-up votes) }
+  // Shares only, never head counts: an early stream's 2 votes look sad.
+  // Gone CLOSED_S after it ends, or RESULT_S after its result came - even if
+  // whatever posts it stops, so a stuck box can't stay on the stream.
+  const ANNOUNCE_S = 8, CLOSED_S = 20, RESULT_S = 30;
+  const VOTE_PAPER = [[248, 248, 248], [168, 168, 168], [96, 96, 96], [0, 0, 0]];   // the game's text box
+  const VOTE_COLOURS = ["#00b800", "#f80000", "#3890f8", "#f8b800"];   // a bet's bars (the HP bar's green, red...)
+  const TEST_VOTE = params.get("vote");   // ?vote=poll / ?vote=bet: a sample, over and over (lining it up in OBS)
+  let vote = null, voteSeen = 0, resultSeen = 0;
+  function setVote(v) {
+    const nowS = Date.now() / 1000;
+    v = v && typeof v === "object" ? v : null;
+    if (v && (!vote || vote.id !== v.id)) { voteSeen = nowS; resultSeen = 0; }
+    if (v && v.result != null && !resultSeen) resultSeen = nowS;
+    vote = v;
+  }
+  if (TEST_VOTE) {
+    setVote(AC_LAYOUT.testVote(TEST_VOTE));
+    setInterval(() => setVote(AC_LAYOUT.testVote(TEST_VOTE)), 90000);
+  }
+  // What to show now (null: nothing).
+  function voteView(nowS) {
+    const v = vote;
+    if (!v) return null;
+    const kind = v.kind === "bet" ? "bet" : "poll";
+    const options = (Array.isArray(v.options) && v.options.length ? v.options : kind === "bet" ? ["YES", "NO"] : [])
+      .slice(0, 4).map(o => readable(String(o)).toUpperCase());
+    if (options.length < 2) return null;
+    const started = Number(v.started) || voteSeen, ends = Number(v.ends) || started + 300;
+    let votes = options.map((_, i) => Math.max(0, Number((v.votes || [])[i]) || 0));
+    let result = v.result != null && options[Number(v.result)] != null ? Number(v.result) : null;
+    let settled = resultSeen;
+    if (v.test) {
+      // Made-up votes coming in, the result when it ends.
+      const el = Math.max(0, Math.min(nowS, ends) - started);
+      votes = options.map((_, i) => Math.max(0, Math.round(el * [1.3, 0.9, 0.6, 0.4][i] + 3 * Math.sin(el / 4 + i * 2))));
+      if (nowS >= ends) { result = votes.indexOf(Math.max(...votes)); settled = ends; }
+    }
+    const until = result != null ? (settled || nowS) + RESULT_S : ends + CLOSED_S;
+    if (nowS > until) return null;
+    const total = votes.reduce((a, b) => a + b, 0);
+    const n = options.length;
+    const list = kind === "bet" ? options.join(" or ") : n === 2 ? "1 or 2" : n === 3 ? "1, 2 or 3" : "1 to " + n;
+    const howto = Array.isArray(v.howto) && v.howto.length
+      ? [String(v.howto[0] || ""), String(v.howto[1] || "")]
+      : [("Type " + list).length <= 15 ? "Type " + list : kind === "bet" ? "Type your pick" : "Type 1 to " + n,
+         kind === "bet" ? "in chat to bet!" : "in chat to vote!"];
+    let hint = v.hint ? String(v.hint) : kind === "bet" ? "Bet: type " + options.join("/") : "Vote: type " + (n === 2 ? "1 or 2" : "1-" + n);
+    if (hint.length > 18) hint = kind === "bet" ? "Bet in chat!" : "Vote in chat!";
+    return {
+      kind, options, total, result, started, ends, test: !!v.test,
+      pct: votes.map(c => total ? Math.round(100 * c / total) : null),
+      lead: total ? votes.indexOf(Math.max(...votes)) : -1,
+      open: nowS < ends && result == null,
+      announce: nowS - started < ANNOUNCE_S && nowS < ends && result == null,
+      since: nowS - started,
+      question: readable(String(v.question || (kind === "bet" ? "PLACE YOUR BETS!" : "CHAT POLL!"))).toUpperCase(),
+      pot: v.pot != null && isFinite(Number(v.pot)) ? Number(v.pot) : null,
+      howto: howto.map(readable), hint: readable(hint),
+    };
+  }
+  const leftText = s => {
+    s = Math.max(0, Math.ceil(s));
+    return s >= 3600 ? Math.floor(s / 3600) + "h" + String(Math.floor(s % 3600 / 60)).padStart(2, "0")
+      : Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+  };
+  // The game's graphics with the text box's paper added as one more palette.
+  let voteG = null, VP = 0;
+  function voteGfx() {
+    if (!voteG || voteG.base !== gsc) {
+      voteG = Object.create(gsc);
+      voteG.base = gsc;
+      voteG.palettes = gsc.palettes.concat([VOTE_PAPER]);
+      VP = voteG.palettes.length - 1;
+    }
+    return voteG;
+  }
+  const PHONE_ICON = [0x44, 0x45, 0x54, 0x55];   // the Pokegear's phone (2x2 tiles)
+  // The Game Boy screen's 20x18 tiles: the announcement or the box, and the
+  // bars to draw over it ([row, share, colour]).
+  function voteScreen(V, nowS) {
+    const g = voteGfx(), s = new g.Screen(20, 18, null, VP), bars = [];
+    const alt = Math.floor(nowS / 4) % 2 === 1;   // every 4 s: the other line
+    if (V.announce) {
+      s.textbox(0, 0, 3, 18, VP);
+      s.text(1, 1, V.kind === "bet" ? "CHAT BET!" : "CHAT POLL!", VP);
+      s.text(1, 2, V.howto[0].slice(0, 15), VP);
+      s.text(1, 3, V.howto[1].slice(0, 18), VP);
+      s.put(17, 1, PHONE_ICON[0], 3); s.put(18, 1, PHONE_ICON[1], 3); s.put(17, 2, PHONE_ICON[2], 3); s.put(18, 2, PHONE_ICON[3], 3);
+      return { g, s, bars, shake: V.since < 0.7 ? (Math.floor(V.since * 14) % 2 ? 1 : -1) : 0 };
+    }
+    const n = V.options.length, bet = V.kind === "bet";
+    const rows = Math.max(4, bet ? n + 2 : n + 1), top = 16 - rows, r0 = top + 1;
+    s.textbox(0, top, rows, 18, VP);
+    const won = V.result != null ? (V.options[V.result] + " won!").slice(0, 18) : "";
+    const status = V.open ? V.hint : won || "Voting closed!";
+    const left = V.open ? leftText(V.ends - nowS) : "";
+    const head = left ? V.question.slice(0, 17 - left.length).padEnd(18 - left.length) + left : V.question.slice(0, 18);
+    const foot = bet || n + 1 < rows;   // a line of its own for how to join / the result
+    s.text(1, r0, foot || !alt ? head : status, VP);
+    const mark = i => (V.result != null ? i === V.result : i === V.lead) ? "▶" : " ";
+    const pctText = i => V.pct[i] == null ? "  -%" : String(V.pct[i]).padStart(3) + "%";
+    V.options.forEach((o, i) => {
+      if (bet) {
+        s.text(1, r0 + 1 + i, o.slice(0, 4), VP);
+        if (V.result === i) s.text(5, r0 + 1 + i, "▶", VP);
+        s.text(14, r0 + 1 + i, pctText(i), VP);
+        bars.push([r0 + 1 + i, V.pct[i] || 0, VOTE_COLOURS[i]]);
+      } else {
+        s.text(1, r0 + 1 + i, (i + 1) + mark(i) + o.slice(0, 12).padEnd(12) + pctText(i), VP);
+      }
+    });
+    if (foot) s.text(1, top + rows, bet && V.open && V.pot != null && !alt ? "POT " + fmt(V.pot) : status, VP);
+    if (blink) s.put(18, 17, GSC.CHARS["▼"], VP);
+    return { g, s, bars, shake: 0 };
+  }
+  const voteWork = document.createElement("canvas");
+  voteWork.width = 160; voteWork.height = 144;
+  function drawVote() {
+    const V = voteView(Date.now() / 1000);
+    if (!V || !gsc) return;
+    const { g, s, bars, shake } = voteScreen(V, Date.now() / 1000);
+    const w = voteWork.getContext("2d");
+    w.clearRect(0, 0, 160, 144);
+    w.drawImage(g.render(s), shake, 0);
+    for (const [row, share, colour] of bars) {   // like the HP bar: black edge, white inside
+      const x = 48, y = row * 8 + 2, bw = 64;
+      w.fillStyle = "#000"; w.fillRect(x, y, bw, 4);
+      w.fillStyle = "#f8f8f8"; w.fillRect(x + 1, y + 1, bw - 2, 2);
+      w.fillStyle = colour; w.fillRect(x + 1, y + 1, Math.round((bw - 2) * share / 100), 2);
+    }
+    const R = AC_LAYOUT.screenOf(LAYOUT);
+    ctx.save();
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(voteWork, R.x, R.y, R.w, R.h);
+    if (V.test || TEST_VOTE) {
+      // A sample: the Game Boy screen's edge too, to line it up with the game.
+      ctx.strokeStyle = "#ff9a1f"; ctx.lineWidth = 2; ctx.setLineDash([10, 6]);
+      ctx.strokeRect(R.x - 1, R.y - 1, R.w + 2, R.h + 2);
+    }
+    ctx.restore();
+  }
+
+  // ----- the chat's messages -----
+  function wrapText(text, width) {
+    width = Math.max(8, width);
+    const out = [];
+    for (const para of String(text).split("\n")) {
+      let ln = "";
+      for (let word of para.split(/\s+/).filter(Boolean)) {
+        while (word.length > width) { if (ln) { out.push(ln); ln = ""; } out.push(word.slice(0, width)); word = word.slice(width); }
+        if (!ln) ln = word;
+        else if (ln.length + 1 + word.length <= width) ln += " " + word;
+        else { out.push(ln); ln = word; }
+      }
+      if (ln) out.push(ln);
+    }
+    return out.length ? out : [""];
+  }
+  // The bot's lines in the game's font: the characters it lacks swapped for
+  // ones it has, and the bot's map names (NewBarkTown, Route29,
+  // PlayersHouse1F) spelt out (New Bark Town, Route 29, Players House 1F).
+  function readable(text) {
+    return String(text || "")
+      .replace(/\b[A-Z][A-Za-z0-9]*[a-z][A-Za-z0-9]*\b/g, w =>
+        /[a-z][A-Z0-9]/.test(w) ? w.replace(/([a-z])([A-Z0-9])/g, "$1 $2").replace(/(\d)([A-Z][a-z])/g, "$1 $2") : w)
+      .replace(/ > /g, " → ").replace(/>/g, "→").replace(/\$/g, "¥").replace(/\+/g, "plus ")
+      .replace(/["“”]/g, "'").replace(/[<#*_=~^|{}`\\]/g, " ");
+  }
+  // (300: ~15 hours of lines at the bot's pace - the user, 2026-11-11: "the log
+  // shows data from like 8-15h"; the routine kinds collapse to one each)
+  const LOG_KEEP = 300;
+  function addMessage(m) {
+    log.push({ id: m.id, text: readable(m.text), time: m.time || Math.floor(Date.now() / 1000) });
+    while (log.length > LOG_KEEP) log.shift();
+    rebuild();
+  }
+
+  let lastId = null;
+  async function poll() {
+    try {
+      const r = await fetch("/messages?since=" + (lastId === null ? 0 : lastId), { cache: "no-store" });
+      const data = await r.json();
+      if (data.state && JSON.stringify(data.state) !== JSON.stringify(state)) { state = data.state; rebuild(); }
+      if (!TEST_VOTE && "vote" in data) setVote(data.vote);
+      // On (re)load: all the relay keeps, so the log reaches back hours (they don't slide).
+      const fresh = lastId === null ? (data.messages || []).slice(-LOG_KEEP) : (data.messages || []);   // (all kept: the log reaches back hours - the routine kinds collapse)
+      lastId = data.latest || 0;
+      fresh.forEach(addMessage);
+    } catch (e) {}
+    setTimeout(poll, 300);
+  }
+  // A newly saved layout.json (OBS picks up the editor's Save by itself)...
+  let layoutText = JSON.stringify(LAYOUT);
+  async function watchLayout() {
+    try {
+      const l = await AC_LAYOUT.load(params.get("layout"));
+      const text = JSON.stringify(l);
+      if (text !== layoutText) { layoutText = text; await apply(l); rebuild(); }
+    } catch (e) {}
+    setTimeout(watchLayout, 3000);
+  }
+  // ...or, inside the editor, every change as it's made.
+  addEventListener("message", async e => {
+    if (e.data && e.data.type === "layout" && e.data.layout) { await apply(e.data.layout); rebuild(); }
+    // The editor's "Send a visitor now": the next one, straight away.
+    // (With a species: that one, whatever the time and the band.)
+    if (e.data && e.data.type === "visitor" && EDIT) { visitor = null; visitNext = 0; forcedVisitor = Number(e.data.species) || null; }
+    // The editor's "Unown now": the event, starting over straight away.
+    if (e.data && e.data.type === "unown" && EDIT) { unown = null; unownNext = 0; }
+    // The editor's Test poll / Test bet / Off.
+    if (e.data && e.data.type === "vote" && EDIT) setVote(e.data.vote);
+  });
+
+  setInterval(() => { blink = !blink; rebuild(); }, 450);
+  setInterval(rebuild, 30000);   // "... AGO" moves on
+  await rebuild();
+  requestAnimationFrame(frame);
+  if (!EDIT) watchLayout();
+  if (DEMO) {
+    const DEMO_CHAT = ["A SHINY ZUBAT! DVs 15/10/10/10.", "Gotcha! ZUBAT was caught!",
+      "JOEY wants a rematch! 4 POKé BALLS left, so I'm heading to ROUTE 30 after this one.",
+      "Can't escape! Trying again.", "Hmm, I'm stuck. Trying to free myself...", "It's 6 PM: off to ROUTE 31 for GASTLY."];
+    let chatId = 1;
+    const nowS = Math.floor(Date.now() / 1000);
+    DEMO_CHAT.slice(0, 3).forEach((t, i) => addMessage({ id: chatId++, text: t, time: nowS - (3 - i) * 1500 }));
+    setInterval(() => addMessage({ id: chatId++, text: DEMO_CHAT[Math.floor(Math.random() * DEMO_CHAT.length)] }), 15000);
+    // A new wild Pokemon every few seconds, so the lists slide in the preview.
+    let demoId = 100;
+    (state.encounters || []).forEach((m, i) => { m.id = demoId - i; });
+    setInterval(() => {
+      // The wild ones here, and now and then a big one (56x56 pictures:
+      // Onix, Gyarados, Snorlax, Steelix, Tyranitar, Lugia, Ho-Oh) to see they fit.
+      const BIG = [95, 130, 143, 208, 248, 249, 250];
+      const pick = Math.random() < 0.4 ? BIG[Math.floor(Math.random() * BIG.length)] : (wildNow => wildNow[Math.floor(Math.random() * wildNow.length)].species)(demoWild(state.time_of_day));
+      const dv = () => Math.floor(Math.random() * 16);
+      const m = { id: ++demoId, species: pick, atk: dv(), def: dv(), spe: dv(), spc: dv(), item: Math.random() < 0.2 ? "BERRY" : "" };
+      state.encounters = [m, ...state.encounters].slice(0, 6);
+      state.current = Object.assign({ streak: 1 }, m);
+      rebuild();
+    }, 6000);
+    // A fast game clock: a whole day in ?daylen= seconds (300 by default:
+    // each look stays a while, and its slow fade shows), to watch the colours
+    // go round. Morning/day/night as the game has them.
+    const DAY_MS = Math.max(10, Number(params.get("daylen")) || 300) * 1000;
+    const startHour = gameHour(), demoStart = performance.now();
+    setInterval(() => {
+      const hour = (startHour + (performance.now() - demoStart) / DAY_MS * 24) % 24;
+      const tod = hour >= 4 && hour < 10 ? "MORN" : hour >= 10 && hour < 18 ? "DAY" : "NITE";
+      state.time_of_day = tod;
+      if (state.here) { if (state.here.kind !== "tree") state.here.now = tod; state.here.list = demoWild(tod); }
+      state.clock = Object.assign({}, state.clock, { hours: Math.floor(hour), minutes: Math.floor((hour % 1) * 60) });
+      rebuild();
+    }, 500);
+  } else {
+    poll();
+  }
+  if (EDIT && parent !== window) parent.postMessage({ type: "scene-ready" }, "*");
+})();
+</script>
+</body>
+</html>

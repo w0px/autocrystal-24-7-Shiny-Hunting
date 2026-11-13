@@ -1,0 +1,814 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>autocrystal layout editor</title>
+<!--
+  Set up the stream layout once: drag and resize the boxes, pick what each
+  panel shows, Save. scene.html (in OBS) picks the saved layout.json up by
+  itself. Open through the overlay relay: http://127.0.0.1:<port>/editor.html
+
+  Mouse: drag a box to move it, its edges and corners to resize it. Boxes
+  snap to the tile grid and to each other's and the screen's edges (hold
+  Alt to place freely within the grid).
+  Keys: arrows move the selected box a tile, Shift+arrows resize it,
+  Delete removes it.
+-->
+<style>
+  :root { --side: 320px; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #1d1f24; color: #ddd; font: 13px/1.4 system-ui, sans-serif; overflow: hidden; }
+  #wrap { position: absolute; left: 12px; top: 12px; right: calc(var(--side) + 24px); bottom: 12px; }
+  #stage { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; transform-origin: 0 0; background: #fff; box-shadow: 0 0 0 1px #444; overflow: hidden; }
+  #stage iframe { position: absolute; inset: 0; width: 1920px; height: 1080px; border: 0; pointer-events: none; }
+  .box { position: absolute; cursor: move; }
+  .box.panel { outline: 3px dashed rgba(60, 120, 255, 0.7); outline-offset: -3px; }
+  .box.game { background: #c9ccd2; outline: 3px solid #888; outline-offset: -3px; display: flex; align-items: center; justify-content: center; color: #555; font: 36px monospace; }
+  .box.sel { outline: 4px solid #ff9a1f; outline-offset: -4px; z-index: 5; }
+  .box.bad { outline-color: #e33; }
+  .box .tag { position: absolute; left: 6px; top: 6px; background: rgba(20, 22, 28, 0.85); color: #fff; font: 20px system-ui; padding: 2px 8px; border-radius: 4px; pointer-events: none; white-space: nowrap; }
+  .box .tag b { color: #ffb24a; font-weight: 600; }
+  .clean .box.panel:not(.sel) { outline-color: transparent; }
+  .clean .box .tag { display: none; }
+  .h { position: absolute; width: 22px; height: 22px; background: #ff9a1f; border: 3px solid #1d1f24; border-radius: 4px; display: none; z-index: 6; }
+  .sel .h { display: block; }
+  .h.n, .h.s { left: calc(50% - 11px); cursor: ns-resize; } .h.n { top: -11px; } .h.s { bottom: -11px; }
+  .h.e, .h.w { top: calc(50% - 11px); cursor: ew-resize; } .h.w { left: -11px; } .h.e { right: -11px; }
+  .h.nw { left: -11px; top: -11px; cursor: nwse-resize; } .h.se { right: -11px; bottom: -11px; cursor: nwse-resize; }
+  .h.ne { right: -11px; top: -11px; cursor: nesw-resize; } .h.sw { left: -11px; bottom: -11px; cursor: nesw-resize; }
+  .guide { position: absolute; background: #ff2fd0; z-index: 7; pointer-events: none; }
+  /* An area inside the selected panel (layouts.js AREAS): drag to move, edges to size. */
+  .area { position: absolute; outline: 3px dashed #ffb24a; outline-offset: -3px; background: rgba(255, 178, 74, 0.12); cursor: move; z-index: 8; }
+  .area .tag { left: 4px; top: 4px; font-size: 16px; background: rgba(120, 56, 0, 0.9); }
+  .area .h { display: block; width: 16px; height: 16px; background: #ffb24a; border-width: 2px; }
+  .area .h.n, .area .h.s { left: calc(50% - 8px); } .area .h.n { top: -8px; } .area .h.s { bottom: -8px; }
+  .area .h.e, .area .h.w { top: calc(50% - 8px); } .area .h.w { left: -8px; } .area .h.e { right: -8px; }
+  .area .h.nw { left: -8px; top: -8px; } .area .h.se { right: -8px; bottom: -8px; }
+  .area .h.ne { right: -8px; top: -8px; } .area .h.sw { left: -8px; bottom: -8px; }
+
+  #side { position: absolute; right: 12px; top: 12px; bottom: 12px; width: var(--side); overflow-y: auto; background: #262930; border: 1px solid #353943; border-radius: 8px; padding: 12px 14px; }
+  #side h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: #9aa3b2; margin: 16px 0 6px; }
+  #side h2:first-child { margin-top: 0; }
+  label { display: flex; align-items: center; gap: 8px; margin: 5px 0; }
+  label > span { width: 64px; color: #aab; flex: none; }
+  input[type=number], input[type=text], select { flex: 1; min-width: 0; background: #1b1d22; color: #eee; border: 1px solid #40444f; border-radius: 4px; padding: 4px 6px; font: inherit; }
+  .row { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0; }
+  button { background: #353a46; color: #eee; border: 1px solid #4a5060; border-radius: 4px; padding: 5px 9px; font: inherit; cursor: pointer; }
+  button:hover { background: #3f4554; }
+  button.primary { background: #e0811a; border-color: #e0811a; color: #111; font-weight: 600; }
+  button.primary:hover { background: #f09431; }
+  button:disabled { opacity: .45; cursor: default; }
+  #status { margin-top: 8px; min-height: 18px; color: #9ad79a; }
+  #status.err { color: #ff8a8a; }
+  .note { color: #8b93a3; font-size: 12px; margin: 4px 0; }
+  .grid2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 10px; }
+  input[type=number] { width: 0; }
+  .grid2 label > span { width: 42px; }
+  [hidden] { display: none !important; }
+  #liveWrap { position: absolute; overflow: hidden; pointer-events: none; background: #000; }
+  #liveWrap video { position: absolute; image-rendering: pixelated; object-fit: fill; }
+  .box.game.live { background: transparent; color: transparent; }
+  /* (a test poll / bet running: the preview's game box see-through, so it shows) */
+  #stage.voting .box.game { background: rgba(0, 0, 0, 0.55); color: transparent; }
+  .crop { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0 6px; }
+  .crop label { flex-direction: column; align-items: stretch; gap: 2px; margin: 2px 0; }
+  .crop label > span { width: auto; font-size: 11px; }
+  .crop input[type=number] { width: 100%; flex: none; }
+  .sc { margin: 4px 0 6px; }
+  .sc > div { display: flex; justify-content: space-between; color: #aab; font-size: 12px; }
+  .sc b { color: #ddd; font-weight: normal; }
+  .sc input { width: 100%; margin: 2px 0 0; }
+  .vt { display: grid; grid-template-columns: minmax(0, 1fr) repeat(3, 22px) 6px repeat(3, 22px) 20px; align-items: center; gap: 2px 0; margin: 6px 0; font-size: 12px; }
+  .vt .hd { color: #8b93a3; font-size: 10px; text-align: center; }
+  .vt .hd.left { text-align: left; }
+  .vt .nm { cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 4px; }
+  .vt .nm:hover { color: #ffb24a; }
+  .vt input { margin: 0 auto; display: block; }
+  .vt .x { background: none; border: 0; color: #8b93a3; padding: 0; cursor: pointer; }
+  .vt .x:hover { color: #ff8a8a; }
+  /* The controls folded away (the button, or H): the preview gets the whole window. */
+  #sideToggle { position: fixed; top: 12px; right: calc(var(--side) + 12px - 1px); z-index: 20; width: 22px; height: 44px; padding: 0; border-radius: 6px 0 0 6px; border-right: 0; background: #262930; color: #9aa3b2; font-size: 12px; }
+  #sideToggle:hover { color: #fff; background: #353a46; }
+  body.folded #side { display: none; }
+  body.folded #wrap { right: 12px; }
+  body.folded #sideToggle { right: 0; opacity: .55; }
+  body.folded #sideToggle:hover { opacity: 1; }
+</style>
+</head>
+<body>
+<div id="wrap"><div id="stage">
+  <iframe id="cloudsBg" src="clouds.html"></iframe>
+  <iframe id="scene" src="scene.html?demo=1&edit=1"></iframe>
+  <div id="liveWrap" hidden><video id="liveVideo" autoplay muted playsinline></video></div>
+  <div id="boxes"></div>
+</div></div>
+
+<button id="sideToggle" title="Hide the controls (H)">&#9656;</button>
+<div id="side">
+  <h2>Selected</h2>
+  <div id="selNone" class="note">Click a box on the left.</div>
+  <div id="selBox" hidden>
+    <label><span>Shows</span><select id="selType"></select></label>
+    <label id="selTextRow"><span>Text</span><input id="selText" type="text"></label>
+    <div class="grid2">
+      <label><span>X</span><input id="selX" type="number"></label>
+      <label><span>Y</span><input id="selY" type="number"></label>
+      <label><span>Width</span><input id="selW" type="number"></label>
+      <label><span>Height</span><input id="selH" type="number"></label>
+    </div>
+    <div class="note" id="selInfo"></div>
+    <div id="selInside" hidden>
+      <p class="note">Inside this panel: drag the orange boxes to move its parts, their edges to size them.</p>
+      <div id="selOpts"></div>
+      <div class="row"><button id="insideReset">Inside back to default</button></div>
+    </div>
+    <div class="row">
+      <button id="fillRight" title="Grow right up to the next box or the screen edge">Fill →</button>
+      <button id="fillDown" title="Grow down up to the next box or the screen edge">Fill ↓</button>
+      <button id="fillLeft" title="Grow left up to the next box or the screen edge">← Fill</button>
+      <button id="fillUp" title="Grow up to the next box or the screen edge">↑ Fill</button>
+    </div>
+    <div class="row">
+      <button id="dup">Duplicate</button>
+      <button id="del">Delete</button>
+    </div>
+  </div>
+
+  <h2>Add a panel</h2>
+  <div class="row"><select id="addType" style="flex:1"></select><button id="add">Add</button></div>
+
+  <h2>Whole layout</h2>
+  <label><span>Pixels</span><select id="scale"><option value="2">2x (smaller)</option><option value="3">3x (bigger)</option></select></label>
+  <label><span>Clouds</span><input id="clouds" type="range" min="0" max="1" step="0.05" style="flex:1"><b id="cloudsVal" style="width:34px;text-align:right"></b></label>
+  <label><span>Meadow</span><input id="meadow" type="range" min="0" max="1" step="0.05" style="flex:1"><b id="meadowVal" style="width:34px;text-align:right"></b></label>
+  <label><span>Water</span><input id="water" type="range" min="0" max="1" step="0.05" style="flex:1"><b id="waterVal" style="width:34px;text-align:right"></b></label>
+  <label><span>Colours</span><select id="girl"><option value="0">Gold (orange)</option><option value="1">Kris (blue)</option></select></label>
+  <label><span>Game</span><select id="gameShape">
+    <option value="free">Any shape (stretch)</option>
+    <option value="gb">Game Boy shape (10:9)</option>
+  </select></label>
+  <div class="row">
+    <button id="game6">Game 6x</button><button id="game7">Game 7x</button><button id="game8">Game 8x</button>
+  </div>
+  <label><span>View</span><select id="view"><option value="edit">Outlines + names</option><option value="clean">Clean (as on stream)</option></select></label>
+
+  <h2>Meadow &amp; water</h2>
+  <div id="scenery"></div>
+  <div class="row"><button id="sceneryReset">Back to the defaults</button></div>
+  <p class="note">Pin one in the preview to see it while you tune: add ?band=grass or ?band=water to this page's address.</p>
+
+  <h2>Flying visitors</h2>
+  <label><span>Opacity</span><input id="visitors" type="range" min="0" max="1" step="0.05" style="flex:1"><b id="visitorsVal" style="width:38px;text-align:right"></b></label>
+  <label><span>Size</span><input id="visitorSize" type="range" min="0.2" max="1" step="0.05" style="flex:1"><b id="visitorSizeVal" style="width:38px;text-align:right"></b></label>
+  <div class="row"><button id="visitNow" style="flex:1">Send one now (picked for now)</button></div>
+  <p class="note">Who may fly by at which time of day and over which band. Click a name to send that one across now.</p>
+  <div id="visitorTable" class="vt"></div>
+  <div class="row"><select id="visitorAdd" style="flex:1"></select><button id="visitorAddBtn">Add</button></div>
+  <div class="row"><button id="visitorReset">Back to the suggested list</button></div>
+
+  <h2>Unown</h2>
+  <label><span>Opacity</span><input id="unown" type="range" min="0" max="1" step="0.05" style="flex:1"><b id="unownVal" style="width:38px;text-align:right"></b></label>
+  <div class="row"><button id="unownNow" style="flex:1">Unown now</button></div>
+  <p class="note">A rare event, every 4-10 hours live: for half a minute or so, Unown blink in and out all over the panels.</p>
+
+  <h2>Chat poll / bet</h2>
+  <div class="row"><button id="votePoll">Test poll</button><button id="voteBet">Test bet</button><button id="voteOff">Off</button></div>
+  <p class="note">A sample over the game, here and in OBS: the call at the top for 8 s, then the box with made-up votes for 40 s, then the result. Nothing reads YouTube chat yet.</p>
+  <p class="note">Where the Game Boy screen shows (scene pixels), so the box lands on the game's own text box. The sample draws its edge in orange: line it up with the game in OBS.</p>
+  <div class="grid2">
+    <label><span>X</span><input id="scrX" type="number"></label>
+    <label><span>Y</span><input id="scrY" type="number"></label>
+    <label><span>Width</span><input id="scrW" type="number"></label>
+    <label><span>Height</span><input id="scrH" type="number"></label>
+  </div>
+  <div class="row"><button id="scrFit" title="Forget the numbers: the Game Boy screen fitted into the game box, centred">Fit to game box</button></div>
+
+  <h2>Live game (for testing)</h2>
+  <div class="row"><button id="liveToggle">Show my BizHawk</button><button id="liveGuess" disabled title="Cut BizHawk's title bar, menu and status bar off, assuming the game fills the window's width">Guess crop</button></div>
+  <div class="crop">
+    <label><span>Top</span><input id="cropT" type="number" min="0" value="0"></label>
+    <label><span>Bottom</span><input id="cropB" type="number" min="0" value="0"></label>
+    <label><span>Left</span><input id="cropL" type="number" min="0" value="0"></label>
+    <label><span>Right</span><input id="cropR" type="number" min="0" value="0"></label>
+  </div>
+  <p class="note" id="liveNote">Pick the BizHawk window when the browser asks. Only shown here - never saved into the layout; OBS keeps its own game capture. The crop (window pixels) is remembered in this browser.</p>
+
+  <h2>Save</h2>
+  <div class="row">
+    <button id="save" class="primary">Save layout</button>
+    <button id="revert">Back to saved</button>
+    <button id="reset">Default</button>
+  </div>
+  <div id="status"></div>
+  <p class="note">Saving writes layout.json next to the overlay; the scene in OBS switches to it within a few seconds.</p>
+</div>
+
+<script src="layouts.js"></script>
+<script>
+(async () => {
+  const $ = id => document.getElementById(id);
+  const stage = $("stage"), boxesEl = $("boxes"), scene = $("scene");
+  // ?band=grass / ?hour=22 on this page: the preview keeps that strip / time.
+  {
+    const own = new URLSearchParams(location.search), pass = new URLSearchParams({ demo: "1", edit: "1" });
+    for (const k of ["band", "hour", "debug"]) if (own.has(k)) pass.set(k, own.get(k));
+    if (pass.has("band") || pass.has("hour") || pass.has("debug")) scene.src = "scene.html?" + pass;
+  }
+  let layout = await AC_LAYOUT.load();
+  let savedText = JSON.stringify(layout);
+  let sel = null;                 // "game" or a panel index
+  let dirty = false;
+
+  const G = () => 8 * (parseInt(layout.scale, 10) || 2);   // a tile, in pixels
+  const snapG = v => Math.round(v / G()) * G();
+  const boxOf = key => key === "game" ? layout.game : layout.panels[key];
+
+  // ----- fit the 1920x1080 stage into the window -----
+  let zoom = 1;
+  function fit() {
+    const r = $("wrap").getBoundingClientRect();
+    zoom = Math.min(r.width / 1920, r.height / 1080);
+    stage.style.transform = `scale(${zoom})`;
+  }
+  addEventListener("resize", fit);
+  // Fold the controls away and back (the button at their edge, or H): the
+  // preview then fills the window. Remembered in this browser.
+  function fold(on) {
+    document.body.classList.toggle("folded", on);
+    $("sideToggle").innerHTML = on ? "&#9666;" : "&#9656;";
+    $("sideToggle").title = on ? "Show the controls (H)" : "Hide the controls (H)";
+    try { localStorage.setItem("acEditorFolded", on ? "1" : ""); } catch (e) {}
+    dispatchEvent(new Event("resize"));   // the preview (and the live game, if shown) re-fit
+  }
+  $("sideToggle").onclick = () => fold(!document.body.classList.contains("folded"));
+  addEventListener("keydown", e => {
+    if ((e.key === "h" || e.key === "H") && !e.ctrlKey && !e.altKey && !e.metaKey
+        && !["INPUT", "SELECT", "TEXTAREA"].includes(document.activeElement.tagName)) fold(!document.body.classList.contains("folded"));
+  });
+  try { if (localStorage.getItem("acEditorFolded")) fold(true); } catch (e) {}
+  fit();
+
+  // ----- the scene preview follows every change -----
+  let pending = false;
+  function changed(markDirty = true) {
+    if (markDirty) dirty = JSON.stringify(layout) !== savedText;
+    if (!pending) {
+      pending = true;
+      requestAnimationFrame(() => {
+        pending = false;
+        scene.contentWindow && scene.contentWindow.postMessage({ type: "layout", layout: AC_LAYOUT.copy(layout) }, "*");
+        draw();
+      });
+    }
+    status(dirty ? "Not saved yet." : "", false, true);
+  }
+  addEventListener("message", e => { if (e.data && e.data.type === "scene-ready") changed(false); });
+  scene.addEventListener("load", () => setTimeout(() => changed(false), 300));
+
+  // ----- the boxes -----
+  function problems(key) {
+    const b = boxOf(key), out = [];
+    if (key !== "game") {
+      const m = AC_LAYOUT.MODULES[b.type];
+      if (m && (b.w / G() < m.min[0] || b.h / G() < m.min[1])) out.push(`too small (needs ${m.min[0]}x${m.min[1]} tiles)`);
+    }
+    const all = ["game", ...layout.panels.map((_, i) => i)];
+    for (const k of all) {
+      if (k === key) continue;
+      const o = boxOf(k);
+      if (b.x < o.x + o.w && o.x < b.x + b.w && b.y < o.y + o.h && o.y < b.y + b.h) { out.push("overlaps " + (k === "game" ? "the game" : "another panel")); break; }
+    }
+    if (b.x < 0 || b.y < 0 || b.x + b.w > 1920 || b.y + b.h > 1080) out.push("off screen");
+    return out;
+  }
+
+  function draw() {
+    if (typeof showScreen === "function") showScreen();   // (the Game Boy screen's numbers follow the game box until set)
+    boxesEl.innerHTML = "";
+    const keys = ["game", ...layout.panels.map((_, i) => i)];
+    for (const key of keys) {
+      const b = boxOf(key);
+      const el = document.createElement("div");
+      el.className = "box " + (key === "game" ? "game" : "panel") + (sel === key ? " sel" : "") + (problems(key).length ? " bad" : "");
+      Object.assign(el.style, { left: b.x + "px", top: b.y + "px", width: b.w + "px", height: b.h + "px" });
+      if (key === "game") { el.textContent = `GAME CAPTURE ${b.w}x${b.h}`; el.classList.toggle("live", !!liveStream); }
+      const tag = document.createElement("div");
+      tag.className = "tag";
+      const label = key === "game" ? "Game" : (AC_LAYOUT.MODULES[b.type] ? AC_LAYOUT.MODULES[b.type].label.split(" (")[0] : b.type);
+      tag.innerHTML = `<b>${label}</b> ${Math.round(b.w / G())}x${Math.round(b.h / G())}`;
+      el.appendChild(tag);
+      for (const h of ["n", "s", "e", "w", "ne", "nw", "se", "sw"]) {
+        const hd = document.createElement("div");
+        hd.className = "h " + h;
+        hd.dataset.h = h;
+        el.appendChild(hd);
+      }
+      el.addEventListener("pointerdown", e => startDrag(e, key, e.target.dataset.h || ""));
+      // The selected panel's inner areas, if its kind has any.
+      const spec = key !== "game" && sel === key && AC_LAYOUT.AREAS[b.type];
+      if (spec) {
+        const wT = Math.round(b.w / G()), hT = Math.round(b.h / G());
+        for (const [name, as] of Object.entries(spec.areas)) {
+          const a = AC_LAYOUT.areaOf(b, name, wT, hT);
+          const ar = document.createElement("div");
+          ar.className = "area";
+          Object.assign(ar.style, { left: a.x * G() + "px", top: a.y * G() + "px", width: a.w * G() + "px", height: a.h * G() + "px" });
+          const at = document.createElement("div");
+          at.className = "tag";
+          at.textContent = `${as.label} ${a.w}x${a.h}`;
+          ar.appendChild(at);
+          for (const h of ["n", "s", "e", "w", "ne", "nw", "se", "sw"]) {
+            const hd = document.createElement("div");
+            hd.className = "h " + h;
+            hd.dataset.h = h;
+            ar.appendChild(hd);
+          }
+          ar.addEventListener("pointerdown", e => startAreaDrag(e, key, name, e.target.dataset.h || ""));
+          el.appendChild(ar);
+        }
+      }
+      boxesEl.appendChild(el);
+    }
+    stage.classList.toggle("clean", $("view").value === "clean");
+    $("cloudsBg").style.display = "";
+    placeLive();
+    showSelected();
+  }
+
+  // ----- the live game: a shared window (BizHawk) in the game box -----
+  // The browser's own window sharing (it asks which window). Cropped by the
+  // numbers below (in the window's pixels), then stretched to the box,
+  // pixelated so it stays crisp. Testing only: nothing of it is saved.
+  let liveStream = null;
+  const CROP_KEY = "autocrystal-editor-crop";
+  const crop = { t: 0, b: 0, l: 0, r: 0 };
+  try { Object.assign(crop, JSON.parse(localStorage.getItem(CROP_KEY) || "{}")); } catch (e) { /* none yet */ }
+  const showCrop = () => { $("cropT").value = crop.t; $("cropB").value = crop.b; $("cropL").value = crop.l; $("cropR").value = crop.r; };
+  const keepCrop = () => { try { localStorage.setItem(CROP_KEY, JSON.stringify(crop)); } catch (e) { /* fine */ } };
+  function placeLive() {
+    const wrap = $("liveWrap"), v = $("liveVideo"), g = layout.game;
+    wrap.hidden = !liveStream;
+    if (!liveStream || !v.videoWidth) return;
+    Object.assign(wrap.style, { left: g.x + "px", top: g.y + "px", width: g.w + "px", height: g.h + "px" });
+    const cw = Math.max(1, v.videoWidth - crop.l - crop.r), ch = Math.max(1, v.videoHeight - crop.t - crop.b);
+    const sx = g.w / cw, sy = g.h / ch;
+    Object.assign(v.style, { width: v.videoWidth * sx + "px", height: v.videoHeight * sy + "px", left: -crop.l * sx + "px", top: -crop.t * sy + "px" });
+  }
+  function stopLive() {
+    if (liveStream) liveStream.getTracks().forEach(t => t.stop());
+    liveStream = null;
+    $("liveVideo").srcObject = null;
+    $("liveToggle").textContent = "Show my BizHawk";
+    $("liveGuess").disabled = true;
+    draw();
+  }
+  $("liveToggle").onclick = async () => {
+    if (liveStream) { stopLive(); return; }
+    try {
+      liveStream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 60 }, audio: false });
+    } catch (e) {
+      status("No window shared" + (e && e.name === "NotAllowedError" ? "." : ": " + e.message), !!(e && e.name !== "NotAllowedError"));
+      return;
+    }
+    liveStream.getVideoTracks()[0].addEventListener("ended", stopLive);   // "Stop sharing" in the browser
+    $("liveVideo").srcObject = liveStream;
+    $("liveToggle").textContent = "Hide BizHawk";
+    $("liveGuess").disabled = false;
+    draw();
+  };
+  $("liveVideo").addEventListener("loadedmetadata", placeLive);
+  $("liveVideo").addEventListener("resize", placeLive);   // the window was resized
+  // BizHawk: the game fills the window's width at a whole scale; the rest of
+  // the height is title bar + menu (top) and status bar (bottom, ~22px).
+  $("liveGuess").onclick = () => {
+    const v = $("liveVideo");
+    if (!v.videoWidth) return;
+    const w = v.videoWidth, h = v.videoHeight;
+    const gameH = Math.round(w * 144 / 160);
+    const status_ = Math.min(22, Math.max(0, h - gameH));
+    Object.assign(crop, { l: 0, r: 0, b: status_, t: Math.max(0, h - gameH - status_) });
+    showCrop(); keepCrop(); placeLive();
+    status(`Guessed for a ${w}x${h} window - nudge the numbers if an edge shows.`);
+  };
+  for (const [id, k] of [["cropT", "t"], ["cropB", "b"], ["cropL", "l"], ["cropR", "r"]]) {
+    $(id).addEventListener("input", () => { crop[k] = Math.max(0, Number($(id).value) || 0); keepCrop(); placeLive(); });
+  }
+  showCrop();
+
+  // ----- dragging, with snapping -----
+  let guides = [];
+  function clearGuides() { guides.forEach(g => g.remove()); guides = []; }
+  function guide(vertical, at) {
+    const g = document.createElement("div");
+    g.className = "guide";
+    Object.assign(g.style, vertical ? { left: at - 1 + "px", top: 0, width: "3px", height: "1080px" } : { top: at - 1 + "px", left: 0, height: "3px", width: "1920px" });
+    stage.appendChild(g);
+    guides.push(g);
+  }
+  // The edges a moving edge can stick to: the screen's and every other box's.
+  function edges(key, vertical) {
+    const out = vertical ? [0, 1920] : [0, 1080];
+    for (const k of ["game", ...layout.panels.map((_, i) => i)]) {
+      if (k === key) continue;
+      const o = boxOf(k);
+      if (vertical) out.push(o.x, o.x + o.w); else out.push(o.y, o.y + o.h);
+    }
+    return out;
+  }
+  function stick(v, list, free) {
+    if (free) return { v, hit: null };
+    let best = null;
+    for (const e of list) if (Math.abs(e - v) <= 14 && (best === null || Math.abs(e - v) < Math.abs(best - v))) best = e;
+    return best === null ? { v: snapG(v), hit: null } : { v: best, hit: best };
+  }
+
+  function startDrag(e, key, handle) {
+    e.preventDefault(); e.stopPropagation();
+    select(key);
+    const b = boxOf(key), start = { ...b }, x0 = e.clientX, y0 = e.clientY;
+    const shapeLocked = key === "game" && $("gameShape").value === "gb";
+    const move = ev => {
+      const dx = (ev.clientX - x0) / zoom, dy = (ev.clientY - y0) / zoom, free = ev.altKey;
+      clearGuides();
+      const vx = edges(key, true), vy = edges(key, false);
+      let { x, y, w, h } = start;
+      if (!handle) {
+        // Move: stick whichever edge is closer to something.
+        const l = stick(start.x + dx, vx, free), r = stick(start.x + start.w + dx, vx, free);
+        x = (l.hit !== null || r.hit === null) ? l.v : r.v - start.w;
+        if (l.hit !== null) guide(true, l.hit); else if (r.hit !== null) guide(true, r.hit);
+        const t = stick(start.y + dy, vy, free), bo = stick(start.y + start.h + dy, vy, free);
+        y = (t.hit !== null || bo.hit === null) ? t.v : bo.v - start.h;
+        if (t.hit !== null) guide(false, t.hit); else if (bo.hit !== null) guide(false, bo.hit);
+      } else {
+        if (handle.includes("e")) { const r = stick(start.x + start.w + dx, vx, free); w = r.v - start.x; if (r.hit !== null) guide(true, r.hit); }
+        if (handle.includes("w")) { const l = stick(start.x + dx, vx, free); x = l.v; w = start.x + start.w - x; if (l.hit !== null) guide(true, l.hit); }
+        if (handle.includes("s")) { const bo = stick(start.y + start.h + dy, vy, free); h = bo.v - start.y; if (bo.hit !== null) guide(false, bo.hit); }
+        if (handle.includes("n")) { const t = stick(start.y + dy, vy, free); y = t.v; h = start.y + start.h - y; if (t.hit !== null) guide(false, t.hit); }
+        if (shapeLocked) { h = Math.round(w * 9 / 10); }
+      }
+      Object.assign(b, { x, y, w: Math.max(G() * 3, w), h: Math.max(G() * 3, h) });
+      changed();
+    };
+    const up = () => { removeEventListener("pointermove", move); removeEventListener("pointerup", up); clearGuides(); changed(); };
+    addEventListener("pointermove", move);
+    addEventListener("pointerup", up);
+  }
+  stage.addEventListener("pointerdown", e => { if (e.target === stage || e.target === boxesEl) select(null); });
+
+  // An area inside a panel: moved or sized a tile at a time, kept inside the
+  // panel's frame and no smaller than its kind allows (layouts.js AREAS).
+  function startAreaDrag(e, key, name, handle) {
+    e.preventDefault(); e.stopPropagation();
+    const p = boxOf(key), spec = AC_LAYOUT.AREAS[p.type].areas[name];
+    const wT = Math.round(p.w / G()), hT = Math.round(p.h / G());
+    const start = AC_LAYOUT.areaOf(p, name, wT, hT), x0 = e.clientX, y0 = e.clientY;
+    const move = ev => {
+      const dx = Math.round((ev.clientX - x0) / zoom / G()), dy = Math.round((ev.clientY - y0) / zoom / G());
+      let { x, y, w, h } = start;
+      if (!handle) { x += dx; y += dy; }
+      if (handle.includes("e")) w = start.w + dx;
+      if (handle.includes("w")) { x = start.x + dx; w = start.w - dx; }
+      if (handle.includes("s")) h = start.h + dy;
+      if (handle.includes("n")) { y = start.y + dy; h = start.h - dy; }
+      w = Math.max(spec.min[0], w); h = Math.max(spec.min[1], h);
+      if (handle.includes("w")) x = start.x + start.w - w;
+      if (handle.includes("n")) y = start.y + start.h - h;
+      p.areas = p.areas || {};
+      p.areas[name] = { x, y, w, h };
+      p.areas[name] = AC_LAYOUT.areaOf(p, name, wT, hT);   // kept inside the panel
+      changed();
+    };
+    const up = () => { removeEventListener("pointermove", move); removeEventListener("pointerup", up); changed(); };
+    addEventListener("pointermove", move);
+    addEventListener("pointerup", up);
+  }
+
+  // ----- the side panel -----
+  for (const [type, m] of Object.entries(AC_LAYOUT.MODULES)) {
+    for (const s of [$("selType"), $("addType")]) {
+      const o = document.createElement("option");
+      o.value = type; o.textContent = m.label;
+      s.appendChild(o);
+    }
+  }
+  function select(key) { sel = key; draw(); }
+  function showSelected() {
+    const has = sel !== null && boxOf(sel);
+    $("selNone").hidden = !!has;
+    $("selBox").hidden = !has;
+    if (!has) return;
+    const b = boxOf(sel), isGame = sel === "game";
+    $("selType").disabled = isGame;
+    if (!isGame) $("selType").value = b.type;
+    $("selTextRow").hidden = isGame || b.type !== "title";
+    if (!isGame && b.type === "title" && document.activeElement !== $("selText")) $("selText").value = b.text || "";
+    for (const [id, k] of [["selX", "x"], ["selY", "y"], ["selW", "w"], ["selH", "h"]]) {
+      if (document.activeElement !== $(id)) $(id).value = b[k];
+      $(id).step = G();
+    }
+    $("dup").disabled = isGame; $("del").disabled = isGame;
+    const p = problems(sel);
+    $("selInfo").textContent = `${Math.round(b.w / G())} x ${Math.round(b.h / G())} tiles` + (p.length ? " - " + p.join(", ") : "");
+    // Inside the panel: its areas' settings (rebuilt only when another panel
+    // or kind is selected, so a slider keeps working while dragged).
+    const spec = !isGame && AC_LAYOUT.AREAS[b.type];
+    $("selInside").hidden = !spec;
+    const insideKey = spec ? sel + ":" + b.type : null;
+    if (spec && $("selOpts").dataset.key !== insideKey) {
+      $("selOpts").dataset.key = insideKey;
+      $("selOpts").innerHTML = "";
+      for (const [k, o] of Object.entries(spec.opts)) {
+        const row = document.createElement("label");
+        const nm = document.createElement("span"); nm.textContent = o.label; nm.style.width = "84px";
+        const input = document.createElement("input");
+        Object.assign(input, { type: "range", min: o.min, max: o.max, step: 1 });
+        input.style.flex = "1";
+        input.value = AC_LAYOUT.optOf(b, k);
+        const val = document.createElement("b");
+        Object.assign(val.style, { width: "64px", textAlign: "right", fontWeight: "normal" });
+        val.textContent = input.value + " " + o.unit;
+        input.oninput = () => {
+          const pb = boxOf(sel);
+          pb.opts = pb.opts || {};
+          pb.opts[k] = Number(input.value);
+          val.textContent = input.value + " " + o.unit;
+          changed();
+        };
+        row.append(nm, input, val);
+        $("selOpts").appendChild(row);
+      }
+    }
+    if (!spec) $("selOpts").dataset.key = "";
+  }
+  $("insideReset").onclick = () => {
+    if (sel === null || sel === "game") return;
+    const b = boxOf(sel);
+    delete b.areas; delete b.opts;
+    $("selOpts").dataset.key = "";
+    changed();
+  };
+  $("selType").addEventListener("change", () => { if (sel !== null && sel !== "game") { boxOf(sel).type = $("selType").value; changed(); } });
+  $("selText").addEventListener("input", () => { if (sel !== null && sel !== "game") { boxOf(sel).text = $("selText").value; changed(); } });
+  for (const [id, k] of [["selX", "x"], ["selY", "y"], ["selW", "w"], ["selH", "h"]]) {
+    $(id).addEventListener("change", () => {
+      if (sel === null) return;
+      const b = boxOf(sel);
+      b[k] = Math.max(k === "w" || k === "h" ? G() * 3 : 0, Number($(id).value) || 0);
+      if (sel === "game" && $("gameShape").value === "gb" && k === "w") b.h = Math.round(b.w * 9 / 10);
+      changed();
+    });
+  }
+
+  // Grow towards the next box (or the screen edge) in one direction.
+  function fill(dir) {
+    if (sel === null) return;
+    const b = boxOf(sel);
+    const others = ["game", ...layout.panels.map((_, i) => i)].filter(k => k !== sel).map(boxOf);
+    const overlapY = o => o.y < b.y + b.h && b.y < o.y + o.h;
+    const overlapX = o => o.x < b.x + b.w && b.x < o.x + o.w;
+    if (dir === "right") { let lim = 1920; others.forEach(o => { if (overlapY(o) && o.x >= b.x + b.w) lim = Math.min(lim, o.x); }); b.w = lim - b.x; }
+    if (dir === "down") { let lim = Math.floor(1080 / G()) * G(); others.forEach(o => { if (overlapX(o) && o.y >= b.y + b.h) lim = Math.min(lim, o.y); }); b.h = lim - b.y; }
+    if (dir === "left") { let lim = 0; others.forEach(o => { if (overlapY(o) && o.x + o.w <= b.x) lim = Math.max(lim, o.x + o.w); }); b.w += b.x - lim; b.x = lim; }
+    if (dir === "up") { let lim = 0; others.forEach(o => { if (overlapX(o) && o.y + o.h <= b.y) lim = Math.max(lim, o.y + o.h); }); b.h += b.y - lim; b.y = lim; }
+    changed();
+  }
+  $("fillRight").onclick = () => fill("right");
+  $("fillDown").onclick = () => fill("down");
+  $("fillLeft").onclick = () => fill("left");
+  $("fillUp").onclick = () => fill("up");
+
+  $("dup").onclick = () => {
+    if (sel === null || sel === "game") return;
+    const b = AC_LAYOUT.copy(boxOf(sel));
+    b.x = Math.min(1920 - b.w, b.x + G() * 2); b.y = Math.min(1080 - b.h, b.y + G() * 2);
+    layout.panels.push(b); sel = layout.panels.length - 1; changed();
+  };
+  $("del").onclick = () => {
+    if (sel === null || sel === "game") return;
+    layout.panels.splice(sel, 1); sel = null; changed();
+  };
+  $("add").onclick = () => {
+    const type = $("addType").value, m = AC_LAYOUT.MODULES[type];
+    const w = Math.max(m.min[0], 20) * G(), h = Math.max(m.min[1], 8) * G();
+    layout.panels.push({ type, x: snapG((1920 - w) / 2), y: snapG((1080 - h) / 2), w, h });
+    sel = layout.panels.length - 1; changed();
+  };
+
+  // ----- the whole layout -----
+  function showGlobals() {
+    $("scale").value = String(layout.scale || 2);
+    $("clouds").value = layout.clouds != null ? layout.clouds : 0.35;
+    $("cloudsVal").textContent = Number($("clouds").value).toFixed(2);
+    $("meadow").value = AC_LAYOUT.meadowOf(layout);
+    $("meadowVal").textContent = Number($("meadow").value).toFixed(2);
+    $("water").value = AC_LAYOUT.waterOf(layout);
+    $("waterVal").textContent = Number($("water").value).toFixed(2);
+    $("visitors").value = layout.visitors != null ? layout.visitors : 0.8;
+    $("visitorsVal").textContent = Number($("visitors").value).toFixed(2);
+    showScenery();
+    $("visitorSize").value = layout.visitorSize != null ? layout.visitorSize : 0.45;
+    $("visitorSizeVal").textContent = Math.round($("visitorSize").value * 100) + "%";
+    showVisitors();
+    $("unown").value = layout.unown != null ? layout.unown : 0.5;
+    $("unownVal").textContent = Number($("unown").value).toFixed(2);
+    $("girl").value = layout.girl ? "1" : "0";
+  }
+  $("scale").onchange = () => {
+    // Keep everything on the new, bigger or smaller, grid.
+    layout.scale = parseInt($("scale").value, 10);
+    for (const p of layout.panels) { p.x = snapG(p.x); p.y = snapG(p.y); p.w = snapG(p.w); p.h = snapG(p.h); }
+    changed();
+  };
+  $("clouds").oninput = () => {
+    layout.clouds = Number($("clouds").value); $("cloudsVal").textContent = layout.clouds.toFixed(2);
+    if (layout.meadow == null) {   // the meadow and water follow the clouds until they have their own
+      $("meadow").value = AC_LAYOUT.meadowOf(layout); $("meadowVal").textContent = Number($("meadow").value).toFixed(2);
+    }
+    if (layout.water == null) {
+      $("water").value = AC_LAYOUT.waterOf(layout); $("waterVal").textContent = Number($("water").value).toFixed(2);
+    }
+    changed();
+  };
+  $("water").oninput = () => { layout.water = Number($("water").value); $("waterVal").textContent = layout.water.toFixed(2); changed(); };
+  $("meadow").oninput = () => { layout.meadow = Number($("meadow").value); $("meadowVal").textContent = layout.meadow.toFixed(2); changed(); };
+  // ----- the meadow and water strips -----
+  // A slider per setting in layouts.js's SCENERY, kept in layout.scenery.
+  function showScenery() {
+    const box = $("scenery");
+    box.innerHTML = "";
+    for (const [key, label, min, max, step, def, fmt] of AC_LAYOUT.SCENERY) {
+      // Its name and value on a line, the slider the full width under them.
+      const row = document.createElement("div");
+      row.className = "sc";
+      const head = document.createElement("div");
+      const name = document.createElement("span"); name.textContent = label;
+      const val = document.createElement("b");
+      const input = document.createElement("input");
+      Object.assign(input, { type: "range", min, max, step });
+      input.value = AC_LAYOUT.sceneryOf(layout, key);
+      val.textContent = fmt(Number(input.value));
+      head.append(name, val);
+      row.append(head, input);
+      input.oninput = () => {
+        layout.scenery = layout.scenery || {};
+        layout.scenery[key] = Number(input.value);
+        val.textContent = fmt(Number(input.value));
+        changed();
+      };
+      box.appendChild(row);
+    }
+  }
+  $("sceneryReset").onclick = () => { delete layout.scenery; showScenery(); changed(); };
+
+  // ----- the flying visitors -----
+  // Opacity, size (a share of the encounter pictures'), and one sent across
+  // right away to see it - the next picked for this time and band, or (a
+  // name clicked) that one.
+  $("visitors").oninput = () => { layout.visitors = Number($("visitors").value); $("visitorsVal").textContent = layout.visitors.toFixed(2); changed(); };
+  $("visitorSize").oninput = () => { layout.visitorSize = Number($("visitorSize").value); $("visitorSizeVal").textContent = Math.round(layout.visitorSize * 100) + "%"; changed(); };
+  const sendVisitor = species => { scene.contentWindow && scene.contentWindow.postMessage({ type: "visitor", species }, "*"); };
+  $("visitNow").onclick = () => sendVisitor(null);
+  // ----- the Unown -----
+  $("unown").oninput = () => { layout.unown = Number($("unown").value); $("unownVal").textContent = layout.unown.toFixed(2); changed(); };
+  $("unownNow").onclick = () => { scene.contentWindow && scene.contentWindow.postMessage({ type: "unown" }, "*"); };
+  // Who flies when and over what: a row each - its name, a tick per time of
+  // day and per band, x to drop it. The first change copies the suggested
+  // list (layouts.js) into the layout; from then on it's yours.
+  var speciesNames;   // (var/function: showGlobals can run before these lines)
+  function nameOf(n) { const s = (speciesNames || [])[n - 1] || ("#" + n); return s.charAt(0) + s.slice(1).toLowerCase(); }
+  function ownList() {
+    if (!Array.isArray(layout.visitorList)) layout.visitorList = AC_LAYOUT.copy(AC_LAYOUT.VISITORS);
+    return layout.visitorList;
+  }
+  function showVisitors() {
+    const list = AC_LAYOUT.visitorsOf(layout), t = $("visitorTable");
+    t.innerHTML = "";
+    const send = species => { scene.contentWindow && scene.contentWindow.postMessage({ type: "visitor", species }, "*"); };
+    const cell = (cls, text, title) => { const d = document.createElement("div"); d.className = cls; d.textContent = text; if (title) d.title = title; t.appendChild(d); return d; };
+    cell("hd left", "Pokemon");
+    for (const [, label] of AC_LAYOUT.TIMES) cell("hd", label.slice(0, 2), label);
+    cell("hd", "");
+    for (const [, label] of AC_LAYOUT.BACKDROPS) cell("hd", label.slice(0, 2), label);
+    cell("hd", "");
+    list.forEach((e, i) => {
+      const nm = cell("nm", nameOf(e.species), "Send " + nameOf(e.species) + " across now");
+      nm.onclick = () => send(e.species);
+      const tick = (key, value, label) => {
+        const box = document.createElement("input");
+        box.type = "checkbox"; box.title = label;
+        box.checked = (e[key] || []).includes(value);
+        box.onchange = () => {
+          const own = ownList()[i];
+          own[key] = (own[key] || []).filter(v => v !== value);
+          if (box.checked) own[key].push(value);
+          changed();
+        };
+        t.appendChild(box);
+      };
+      for (const [id, label] of AC_LAYOUT.TIMES) tick("times", id, label);
+      cell("", "");
+      for (const [id, label] of AC_LAYOUT.BACKDROPS) tick("backdrops", id, label);
+      const x = document.createElement("button");
+      x.className = "x"; x.textContent = "✕"; x.title = "Remove " + nameOf(e.species);
+      x.onclick = () => { ownList().splice(i, 1); showVisitors(); changed(); };
+      t.appendChild(x);
+    });
+    if (!list.length) cell("note", "Nobody - add some below.").style.gridColumn = "1 / -1";
+  }
+  $("visitorAddBtn").onclick = () => {
+    const n = Number($("visitorAdd").value);
+    if (!n) return;
+    const list = ownList();
+    if (!list.some(e => e.species === n)) list.push({ species: n, times: AC_LAYOUT.TIMES.map(([id]) => id), backdrops: AC_LAYOUT.BACKDROPS.map(([id]) => id) });
+    showVisitors(); changed();
+  };
+  $("visitorReset").onclick = () => { delete layout.visitorList; showVisitors(); changed(); };
+  try { speciesNames = await (await fetch("gfx/species.json")).json(); } catch (e) {}
+  $("visitorAdd").innerHTML = (speciesNames || []).map((s, i) => `<option value="${i + 1}">${String(i + 1).padStart(3, "0")} ${nameOf(i + 1)}</option>`).join("");
+  showVisitors();
+  $("girl").onchange = () => { layout.girl = $("girl").value === "1"; changed(); };
+  // ----- the chat poll / bet box -----
+  // Test: the sample to the preview here and to the relay (OBS's scene).
+  let voteTimer = null;
+  async function testVote(v) {
+    scene.contentWindow && scene.contentWindow.postMessage({ type: "vote", vote: v }, "*");
+    // The game box dark and see-through while it runs (call, votes, result).
+    clearTimeout(voteTimer);
+    stage.classList.toggle("voting", !!v);
+    if (v) voteTimer = setTimeout(() => stage.classList.remove("voting"), (v.ends - v.started + 32) * 1000);
+    try {
+      const r = await fetch("/vote", { method: "POST", headers: { "Content-Type": "application/json", "X-Autocrystal": "editor" }, body: JSON.stringify({ vote: v }) });
+      if (!r.ok) throw new Error(await r.text());
+      if ((await r.text()) !== "vote") {   // a relay from before the box: it ignores it
+        status(v ? "Test " + v.kind + " running here only - restart the overlay relay (the launcher) for OBS to get it." : "Test off.");
+        return;
+      }
+      status(v ? "Test " + v.kind + " running - here and in OBS." : "Test off.");
+    } catch (e) {
+      status(v ? "Test " + v.kind + " running here only (OBS gets it when this page is opened through the overlay relay)." : "Test off.");
+    }
+  }
+  $("votePoll").onclick = () => testVote(AC_LAYOUT.testVote("poll"));
+  $("voteBet").onclick = () => testVote(AC_LAYOUT.testVote("bet"));
+  $("voteOff").onclick = () => testVote(null);
+  var SCR = [["scrX", "x"], ["scrY", "y"], ["scrW", "w"], ["scrH", "h"]];
+  function showScreen() {
+    if (!SCR) return;   // (draw() can come first)
+    const r = AC_LAYOUT.screenOf(layout);
+    for (const [id, k] of SCR) if (document.activeElement !== $(id)) $(id).value = r[k];
+  }
+  for (const [id] of SCR) $(id).addEventListener("input", () => {
+    const r = AC_LAYOUT.screenOf(layout);
+    for (const [id2, k] of SCR) { const v = Number($(id2).value); if ($(id2).value !== "" && isFinite(v)) r[k] = Math.round(v); }
+    if (r.w > 0 && r.h > 0) { layout.screen = r; changed(); }
+  });
+  $("scrFit").onclick = () => { delete layout.screen; showScreen(); changed(); };
+  $("view").onchange = () => draw();
+  for (const n of [6, 7, 8]) $("game" + n).onclick = () => { Object.assign(layout.game, { w: 160 * n, h: 144 * n }); select("game"); changed(); };
+
+  // ----- keys -----
+  addEventListener("keydown", e => {
+    if (sel === null || ["INPUT", "SELECT"].includes(document.activeElement.tagName)) return;
+    const b = boxOf(sel), g = G();
+    const d = { ArrowLeft: [-g, 0], ArrowRight: [g, 0], ArrowUp: [0, -g], ArrowDown: [0, g] }[e.key];
+    if (d) {
+      e.preventDefault();
+      if (e.shiftKey) { b.w = Math.max(g * 3, b.w + d[0]); b.h = Math.max(g * 3, b.h + d[1]); }
+      else { b.x += d[0]; b.y += d[1]; }
+      changed();
+    } else if ((e.key === "Delete" || e.key === "Backspace") && sel !== "game") {
+      layout.panels.splice(sel, 1); sel = null; changed();
+    }
+  });
+
+  // ----- save -----
+  function status(text, err, quiet) {
+    if (quiet && !text && $("status").dataset.keep) return;
+    $("status").textContent = text;
+    $("status").className = err ? "err" : "";
+    $("status").dataset.keep = quiet ? "" : "1";
+    if (!quiet) setTimeout(() => { $("status").dataset.keep = ""; }, 2500);
+  }
+  $("save").onclick = async () => {
+    const bad = ["game", ...layout.panels.map((_, i) => i)].filter(k => problems(k).length);
+    try {
+      const r = await fetch("/layout", { method: "POST", headers: { "Content-Type": "application/json", "X-Autocrystal": "editor" }, body: JSON.stringify(layout, null, 2) });
+      if (!r.ok) throw new Error(await r.text());
+      savedText = JSON.stringify(layout); dirty = false;
+      status("Saved." + (bad.length ? ` (${bad.length} box${bad.length > 1 ? "es" : ""} marked red - check them)` : ""), false);
+    } catch (e) {
+      status("Couldn't save: " + e.message + " - open this page through the overlay relay.", true);
+    }
+  };
+  $("revert").onclick = async () => { layout = await AC_LAYOUT.load(); savedText = JSON.stringify(layout); sel = null; showGlobals(); changed(false); status("Back to the saved layout."); };
+  $("reset").onclick = () => { layout = AC_LAYOUT.copy(AC_LAYOUT.DEFAULT); sel = null; showGlobals(); changed(); status("Default layout - not saved yet."); };
+  addEventListener("beforeunload", e => { if (dirty) { e.preventDefault(); e.returnValue = ""; } });
+
+  showGlobals();
+  draw();
+  changed(false);
+})();
+</script>
+</body>
+</html>

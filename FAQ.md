@@ -41,7 +41,7 @@ Shinies are 1 in 8,192, and the game runs at normal speed: about 2 to 3 encounte
 
 ### How long will it take?
 
-A long time, and that's the challenge. The first section alone has a 1% Dunsparce and a 5% Teddiursa that only comes out in the morning, and every section after it has its own rare ones. Expect years for the whole game.
+A long time, and that's the challenge. The first section alone takes about 2.3 years: it has a 1% Dunsparce and a 5% Teddiursa that only comes out in the morning. All eight Johto gyms come to about 5 years, and Kanto comes after that. See [the sections and how long they take](README.md#the-sections-and-how-long-they-take).
 
 ### Why does it go back to the same route so often?
 
@@ -69,8 +69,8 @@ Hidden values from 0 to 15 for Attack, Defense, Speed and Special that make each
 
 ### Can I run the bot myself?
 
-The shiny hunting toolkit, yes: [autocrystal](https://github.com/w0px/autocrystal-Shiny-Hunting-Toolkit) hunts wild, fishing, headbutt, egg and static shinies for you in BizHawk, on Gold, Silver and Crystal. The stream bot that plays the whole game isn't public yet.
+Yes, both are open source. The [autocrystal user bot](https://github.com/w0px/autocrystal-Shiny-Hunting-Toolkit) hunts wild, fishing, headbutt, egg and static shinies for you in BizHawk, on Gold, Silver and Crystal; that's the one to start with. The stream bot that plays the whole game is in [this repository](README.md#the-code), but it's still in testing and changes a lot.
 
 ### Where do I get notified about shinies?
 
-On the Discord server: pick **Shinies** in Channels & Roles and you're pinged for every shiny the stream finds, in #shinies.
+On the [Discord server](https://discord.gg/3PMwdtcM87): pick **Shinies** in Channels & Roles and you're pinged for every shiny the stream finds, in #shinies.

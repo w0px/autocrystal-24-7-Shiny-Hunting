@@ -3,9 +3,14 @@
 </p>
 
 <p align="center">
-  <b>How the bot behind the 24/7 Shiny Hunting stream plays Pokémon Crystal</b><br>
-  The stream bot is built on <a href="https://github.com/w0px/autocrystal-Shiny-Hunting-Toolkit">autocrystal</a>, the shiny hunting toolkit you can run yourself.<br>
-  Questions? See the <a href="FAQ.md">FAQ</a>.
+  <b>The open-source bot behind the 24/7 Shiny Hunting stream, playing Pokémon Crystal</b><br>
+  Built on <a href="https://github.com/w0px/autocrystal-Shiny-Hunting-Toolkit">autocrystal</a>, the shiny hunting user bot you can run yourself.
+</p>
+
+<p align="center">
+  <a href="https://discord.gg/3PMwdtcM87"><b>Discord</b></a> ·
+  <a href="https://github.com/w0px/autocrystal-Shiny-Hunting-Toolkit"><b>autocrystal user bot</b></a> ·
+  <a href="FAQ.md"><b>FAQ</b></a>
 </p>
 
 ## Table of Contents
@@ -13,6 +18,7 @@
 - [The Challenge](#the-challenge)
 - [The Ground Rules](#the-ground-rules)
 - [How a Section Works](#how-a-section-works)
+- [The Sections and How Long They Take](#the-sections-and-how-long-they-take)
 - [Picking Targets: Where and When to Hunt](#picking-targets-where-and-when-to-hunt)
 - [The Team](#the-team)
 - [Catching a Shiny](#catching-a-shiny)
@@ -24,6 +30,7 @@
 - [The PC](#the-pc)
 - [Rare Moments](#rare-moments)
 - [The Stream and Discord](#the-stream-and-discord)
+- [The Code](#the-code)
 - [Status](#status)
 
 ## The Challenge
@@ -55,6 +62,28 @@ The first section is everything before Falkner's gym: Routes 29 to 31, Route 36 
 
 **Trade evolutions are left out** (Gengar, Golem, Machamp, Alakazam, Politoed, Steelix, ...): the bot plays alone, there's nobody to trade with.
 
+## The Sections and How Long They Take
+
+Each section only needs what the ones before it didn't give: a Pidgey line finished before Falkner isn't hunted again.
+
+| # | Section | New places to hunt | Shinies to catch | Rarest ones still needed | Typical time | 1 in 10 runs |
+|---|---|---|---|---|---|---|
+| 1 | Before Falkner | Routes 29-31, Route 36, south of Route 46, Sprout Tower, Dark Cave's first room, Ruins of Alph's inner chamber | 42 | Dunsparce 1%, Teddiursa 5% (morning), Hoppip 5%, Weedle 5% | **2.3 years** | under 1.5 / over 3.5 years |
+| 2 | Before Bugsy | Route 32, Ruins of Alph, Union Cave, Route 33, Slowpoke Well | 12 | Onix 10%, Smeargle 10%, Slowpoke 15% | **4 months** | under 3 / over 7 months |
+| 3 | Before Whitney | Ilex Forest, Routes 34-35, National Park | 22 | Yanma 1%, Ditto 5%, Jigglypuff 5%, Paras 5% | **10 months** | under 6 / over 21 months |
+| 4 | Before Morty | Route 37, Burned Tower | 3 | Stantler 40%, Koffing 59% (two: one becomes the Weezing) | **12 days** | under 4 days / over 1 month |
+| 5 | Before Chuck | Routes 38-39 | 6 | Miltank 5%, Tauros 5% | **3.5 months** | under 1 / over 8 months |
+| 6 | Before Jasmine | Whirl Islands | 4 | Seel 25%, Krabby 60% | **1 month** | under 2 / over 7 weeks |
+| 7 | Before Pryce | Route 42, Mt. Mortar, Route 43 | 5 | Machop 20%, Farfetch'd 20%, Marill 20% | **2 months** | under 5 weeks / over 4 months |
+| 8 | Before Clair | Route 44, Ice Path | 7 | Sneasel 10%, Jynx 10% | **3 months** | under 6 weeks / over 7 months |
+| | **All of Johto** | | **101** | | **about 4.7 years** | under 3.7 / over 6 years |
+
+*Typical time* is the median: half the runs are faster, half slower. *1 in 10 runs* is how fast the luckiest tenth and how slow the unluckiest tenth are. A percentage is the best chance to meet that Pokémon in one encounter anywhere in the section.
+
+**Where the numbers come from:** the bot's own planner, run 100 times through all eight sections with the game's real encounter tables, 1 in 8,192 shinies and 1x speed (one encounter every 23 to 34 seconds, measured on the bot). Every shiny is caught, and each section's evolutions are done before its gym, so a Pidgeotto evolved before Falkner isn't hunted again later. It counts the hunt only: the story, training and evolving add days, not months.
+
+**What can change them:** for now the bot hunts by walking, in grass and caves. Surfing, fishing and Headbutt add more Pokémon to each section once the bot can do them, so the real sections will be longer. The sections after Falkner are the plan and may still move around. Kanto and the Elite Four come after Clair.
+
 ## Picking Targets: Where and When to Hunt
 
 Every Pokémon has its own places and times: Gastly only at night, Teddiursa only in the morning, Dunsparce at 1% in Dark Cave. The bot knows every encounter table of the game, by map and time of day.
@@ -68,7 +97,7 @@ Every Pokémon has its own places and times: Gastly only at night, Teddiursa onl
 ## The Team
 
 <p align="center">
-  <img src="images/team.png" alt="The team: starter, catcher, weakener, fighter" width="600">
+  <img src="images/team.png" alt="The team: starter, catcher, weakener, specialist, HM slave" width="640">
 </p>
 
 Six slots, each with a job:
@@ -76,12 +105,12 @@ Six slots, each with a job:
 - **The starter** (Totodile) fights the story battles and gym leaders.
 - **The catcher** puts the shiny to sleep. Always the **Butterfree line** for its Sleep Powder: a regular Caterpie is trained up until a shiny Butterfree takes over.
 - **The weakener** brings the shiny's HP down safely. Always a **Zubat**, trained to the level where it can't knock out even the weakest target with a critical hit. A shiny Zubat replaces the regular one.
-- **Two fighters**, both shiny catches from the run. Picked a third each by level, type coverage and rarity, so a rare shiny beats a common one of the same strength.
-- **The HM slave** carries the field moves (Cut, Surf, Flash, ...). A shiny always beats a regular one.
+- **Up to two specialists**, both shiny catches from the run, picked once Falkner is beaten. They're chosen by level, type coverage and rarity, a third each, so a rare shiny beats a common one of the same strength.
+- **The HM slave** carries the field moves (Cut, Surf, Strength, Whirlpool, ...) so nobody else has to. It's the **first shiny Sentret** the bot catches, evolved into a Furret. The only Pokémon that can take its job is a **shiny Krabby**, levelled into a Kingler.
 
 The catcher and the weakener are the only jobs a regular Pokémon may do. Everything else is a shiny the bot caught itself. When a better shiny comes along, it takes the job: the bot walks to a Pokémon Center, swaps it in from the PC and trains it.
 
-**Training:** fighters are trained to the next big fight's top level + 2 (Falkner's Pidgeotto is Lv 9, so Lv 11). A trainee fights alone when it wins comfortably, for double EXP, and switches out at the start of a fight otherwise, to share it.
+**Training:** specialists are trained to the next big fight's top level + 2 (Falkner's Pidgeotto is Lv 9, so Lv 11). A trainee fights alone when it wins comfortably, for double EXP, and switches out at the start of a fight otherwise, to share it.
 
 ## Catching a Shiny
 
@@ -106,6 +135,7 @@ Every battle uses the real numbers from the game: types, stats, stat changes, mo
 ## Evolutions
 
 - **Level evolutions** (Pidgeot at 36, Jumpluff at 27, ...) are trained up before the section's gym.
+- **Rare evolved forms are evolved, not hunted.** The Burned Tower has a 1% Weezing, but Koffing is 59% there, so the bot catches a second shiny Koffing and trains it to Lv 35. This applies whenever the pre-evolution is met at least twice as often in the section. A shiny Weezing that turns up anyway still counts.
 - **Friendship evolutions** (Crobat) are walked and fought until happy.
 - **Stone evolutions** happen when the stone is available. They never hold up a section.
 - The Pokémon that has to **stay unevolved** for the living dex is kept from evolving: the bot presses B during the evolution, like a player would.
@@ -159,10 +189,18 @@ Beyond shinies the bot watches for everything rare and calls it out on the strea
 ## The Stream and Discord
 
 - **The overlay** is drawn in the game's own style: Gen 2 text boxes, fonts and sprites. It shows the current encounter, recent shinies, the wild Pokémon here, the targets, and a log of what the bot is doing and why.
-- **Discord:** every shiny, perfect DV and 0/0/0/0 is posted in #shinies the moment it shows up: sprite, DVs, Hidden Power, how often that species has been met, and whether the catch worked. New autocrystal releases are posted there too, and a daily report is coming.
+- **[Discord](https://discord.gg/3PMwdtcM87):** every shiny, perfect DV and 0/0/0/0 is posted in #shinies the moment it shows up: sprite, DVs, Hidden Power, how often that species has been met, and whether the catch worked. New autocrystal releases are posted there too, and a daily report is coming.
+
+## The Code
+
+The stream bot is open source, and it's all in this repository:
+
+- **`bot/`** is the bot itself, Lua scripts for BizHawk. `launcher.lua` starts it; `modules/play.lua` plays the game: story, hunting, battles, healing, shopping and the team; `modules/data/` holds the planner, walker, battle logic, team, PC, Mart and the game's data (maps, encounter tables, moves, built from the pokecrystal disassembly by `tools/`). The hunting modules (`wild.lua`, `fishing.lua`, `headbutt.lua`, ...) are the same ones the [autocrystal user bot](https://github.com/w0px/autocrystal-Shiny-Hunting-Toolkit) uses.
+- **`bot/overlay/`** is the stream overlay: browser pages for OBS, drawn with the game's own tiles and font, fed by a small relay the bot talks to.
+- **`discord-server/`** holds the Python tools that set up the [Discord server](https://discord.gg/3PMwdtcM87) and post releases, daily logs and the autocrystal README there.
+
+**Running it yourself:** put [BizHawk 2.11.1](https://github.com/TASEmulators/BizHawk/releases) into `BizHawk\` and your own Pokémon Crystal ROM wherever you like, then double-click `start.bat`. Sprites come from the Stats window's **Download sprites...** button, like in the user bot. The overlay needs the game's graphics in `bot/overlay/gfx/`, copied from the [pokecrystal disassembly](https://github.com/pret/pokecrystal); they aren't in this repository.
 
 ## Status
 
-The bot is in testing: the story up to Sprout Tower, the first section's hunt, the team, catching, the PC, money and evolutions are built. The gym and the sections after Falkner come next.
-
-This repository explains how it works. The stream bot's code isn't here yet: it will follow once it has run long enough on its own.
+The bot is in testing: the story up to Sprout Tower, the first section's hunt, the team, catching, the PC, money and evolutions are built. The gym and the sections after Falkner come next, so expect the code to change a lot.
